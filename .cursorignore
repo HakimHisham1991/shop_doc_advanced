@@ -1,0 +1,26 @@
+# Ignore everything in these folders
+# node_modules/
+# dist/
+# build/
+# coverage/
+
+# Specific files
+# .env
+# secrets.json
+# legacy-code/old-api.js
+
+# Or patterns
+# *.log
+# *.min.js
+
+# You can negate (force-include) with !
+# !important-config.json
+
+
+*.pui
+CAM_SAMPLE/
+
+
+
+
+
