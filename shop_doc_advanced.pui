@@ -106,7 +106,7 @@ Listfileflag_verbose           ON
 Listfileflag_tool              0
 Listfileflag_oper              0
 Listfileflag_lpt_ext           lpt
-Listfileflag_ncfile_ext        EIA
+Listfileflag_ncfile_ext        CSV
 Listfileflag_usertcl_name      new_post_user.tcl
 Listfileflag_review            OFF
 Listfileflag_start_path        0
