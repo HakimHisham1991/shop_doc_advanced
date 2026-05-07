@@ -5976,7 +5976,7 @@ if {[catch {open $csv_output_path w} file_handle]} {
 }
 
 # CSV Header: fixed columns first, then mom_ parameter columns (brackets escaped for Tcl)
-puts $file_handle "Operation Name,Final Ae,Final Ap,mom_template_type,mom_template_subtype,Operation Type,Spindle RPM,Feedrate (units/min),Cycle Time (min),Tool Diameter,mom_tool_corner1_radius,mom_tool_flute_length,mom_stock_part,mom_stock_floor,mom_wall_stock,mom_z_depth_offset,mom_stepover_distance,path_stepover_1,path_stepover_2,path_stepover_3,mom_stepover_distance_source,mom_stepover_percent,mom_stepover_scallop,mom_stepover_type,mom_stepover_variable_max_min\[0\],mom_stepover_variable_max_min\[1\],mom_step_points\[2\],mom_wall_increment,mom_maximal_stepover_distance,mom_deburring_edge_depth,mom_depth_per_cut,mom_cut_level_max_depth,mom_global_cut_depth,mom_step_ahead_distance,mom_multi_depth_cut_increment,mom_horizonal_limit,mom_vertical_limit,mom_axial_stepover_distance,mom_cycle_step1,mom_cycle_type,mom_helical_ramp_angle,mom_vertical_pitch_type,mom_vertical_pitch_value,mom_vertical_pitch_value_source,mom_depth_increment_distance_source,mom_depth_increment_distance"
+puts $file_handle "Operation Name,Final Ae,Final Ap,mom_template_type,mom_template_subtype,mom_operation_type,mom_tool_type,Spindle RPM,Feedrate (units/min),Cycle Time (min),Tool Diameter,mom_tool_corner1_radius,mom_tool_flute_length,mom_stock_part,mom_stock_floor,mom_wall_stock,mom_z_depth_offset,mom_stepover_distance,path_stepover_1,path_stepover_2,path_stepover_3,mom_stepover_distance_source,mom_stepover_percent,mom_stepover_scallop,mom_stepover_type,mom_stepover_variable_max_min\[0\],mom_stepover_variable_max_min\[1\],mom_step_points\[2\],mom_wall_increment,mom_maximal_stepover_distance,mom_deburring_edge_depth,mom_depth_per_cut,mom_cut_level_max_depth,mom_global_cut_depth,mom_step_ahead_distance,mom_multi_depth_cut_increment,mom_horizonal_limit,mom_vertical_limit,mom_axial_stepover_distance,mom_cycle_step1,mom_cycle_type,mom_helical_ramp_angle,mom_vertical_pitch_type,mom_vertical_pitch_value,mom_vertical_pitch_value_source,mom_depth_increment_distance_source,mom_depth_increment_distance,mom_cut_level_distance"
 }
 
 
@@ -8474,7 +8474,7 @@ global mom_stock_part mom_stock_floor mom_wall_stock
 global mom_z_depth_offset mom_stepover_distance mom_stepover_distance_source
 global mom_stepover_percent mom_stepover_scallop mom_stepover_type
 global mom_stepover_variable_max_min mom_step_points
-global mom_depth_per_cut mom_cut_level_max_depth mom_deburring_edge_depth
+global mom_depth_per_cut mom_cut_level_max_depth mom_cut_level_distance mom_deburring_edge_depth
 global mom_global_cut_depth mom_step_ahead_distance mom_wall_increment
 global mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
 global mom_maximal_stepover_distance mom_axial_stepover_distance
@@ -8788,7 +8788,9 @@ catch {
             }
         }
     } elseif {$st eq "PLANAR_PROFILING"} {
-        if {[info exists mom_tool_diameter]} {
+        if {[info exists mom_tool_type] && $mom_tool_type eq "User Defined Mill Tool"} {
+            set final_ae "NO DATA"
+        } elseif {[info exists mom_tool_diameter]} {
             set final_ae [pb__round_param_4dec $mom_tool_diameter]
         }
     } elseif {$st eq "PLANAR_MILL"} {
@@ -9068,20 +9070,20 @@ if {[info exists mom_template_type] && $mom_template_type eq "mill_planar"} {
     set st ""
     if {[info exists mom_template_subtype] && $mom_template_subtype ne ""} { set st [string toupper $mom_template_subtype] }
     if {$st eq "FACE_MILL_MIDPASS"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "FACE_MILL_SPIRAL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "FACE_MILL_ZIGZAG"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "2D_WALL_MILL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "FLOOR_WALL"} {
         if {[info exists mom_depth_per_cut]} {
@@ -9100,25 +9102,21 @@ if {[info exists mom_template_type] && $mom_template_type eq "mill_planar"} {
             set final_ap [pb__round_param_4dec $mom_depth_per_cut]
         }
     } elseif {$st eq "PLANAR_PROFILING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_z_depth_offset]} {
+            set final_ap [pb__round_param_4dec $mom_z_depth_offset]
         }
     } elseif {$st eq "PLANAR_MILL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_max_depth]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_max_depth]
         }
     } elseif {$st eq "GROOVE_MILLING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "PLANAR_DEBURRING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+         set final_ap "NO DATA"
     } elseif {$st eq "MILL_CONTROL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+         set final_ap "NO DATA"
     } elseif {$st eq "FLOOR_FACING"} {
         if {[info exists mom_depth_per_cut]} {
             set final_ap [pb__round_param_4dec $mom_depth_per_cut]
@@ -9145,16 +9143,16 @@ if {[info exists mom_template_type] && $mom_template_type eq "mill_contour"} {
             set final_ap [pb__round_param_4dec $mom_global_cut_depth]
         }
     } elseif {$st eq "3D_ADAPTIVE_ROUGHING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "PLUNGE_MILLING"} {
         if {[info exists mom_tool_flute_length]} {
             set final_ap [pb__round_param_4dec $mom_tool_flute_length]
         }
     } elseif {$st eq "QUICK_ROUGHING"} {
-        if {[info exists mom_global_cut_depth]} {
-            set final_ap [pb__round_param_4dec $mom_global_cut_depth]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "REST_MILLING"} {
         if {[info exists mom_global_cut_depth]} {
@@ -9169,45 +9167,60 @@ if {[info exists mom_template_type] && $mom_template_type eq "mill_contour"} {
             set final_ap [pb__round_param_4dec $mom_global_cut_depth]
         }
     } elseif {$st eq "FIXED_AXIS_GUIDING_CURVES"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "AREA_MILL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "FLOW_MILL_SINGLE" || $st eq "FLOWCUT_SINGLE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+        set final_ap "NO DATA"
     } elseif {$st eq "FLOW_MILL_MULTIPLE" || $st eq "FLOWCUT_MULTIPLE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "FLOW_MILL_REF_TOOL" || $st eq "FLOWCUT_REF_TOOL"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "CURVE_DRIVE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "SOLID_PROFILE_3D"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_multi_depth_cut_increment]} {
+            set final_ap [pb__round_param_4dec $mom_multi_depth_cut_increment]
         }
     } elseif {$st eq "PROFILE_3D"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_multi_depth_cut_increment]} {
+            set final_ap [pb__round_param_4dec $mom_multi_depth_cut_increment]
         }
     } elseif {$st eq "STREAMLINE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+            set final_ap "NO DATA"
     } elseif {$st eq "CONTOUR_SURFACE_AREA"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+            # Final Ap = max(mom_stepover_scallop, mom_horizonal_limit, mom_vertical_limit)
+            set max_val ""
+            set any_val 0
+            if {[info exists mom_stepover_scallop] && $mom_stepover_scallop ne ""} {
+                set max_val $mom_stepover_scallop
+                set any_val 1
+            }
+            if {[info exists mom_horizonal_limit] && $mom_horizonal_limit ne ""} {
+                if {!$any_val || $mom_horizonal_limit > $max_val} {
+                    set max_val $mom_horizonal_limit
+                    set any_val 1
+                }
+            }
+            if {[info exists mom_vertical_limit] && $mom_vertical_limit ne ""} {
+                if {!$any_val || $mom_vertical_limit > $max_val} {
+                    set max_val $mom_vertical_limit
+                    set any_val 1
+                }
+            }
+            if {$any_val} {
+                set final_ap [pb__round_param_4dec $max_val]
+            }
     } elseif {$st eq "3_AXIS_DEBURRING"} {
         if {[info exists mom_deburring_edge_depth]} {
             set final_ap [pb__round_param_4dec $mom_deburring_edge_depth]
@@ -9222,36 +9235,52 @@ if {[info exists mom_template_type] && $mom_template_type eq "mill_multi-axis"} 
     set st ""
     if {[info exists mom_template_subtype] && $mom_template_subtype ne ""} { set st $mom_template_subtype }
     if {$st eq "MULTI_AXIS_ROUGHING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_cut_level_distance]} {
+            set final_ap [pb__round_param_4dec $mom_cut_level_distance]
         }
     } elseif {$st eq "VARIABLE_AXIS_GUIDING_CURVES"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_stepover_distance]} {
+            set final_ap [pb__round_param_4dec $mom_stepover_distance]
         }
     } elseif {$st eq "CONTOUR_PROFILE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_multi_depth_cut_increment]} {
+            set final_ap [pb__round_param_4dec $mom_multi_depth_cut_increment]
         }
     } elseif {$st eq "VARIABLE_STREAMLINE"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
-        }
+        set final_ap "NO DATA"
     } elseif {$st eq "VARIABLE_CONTOUR"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        set max_val ""
+        set any_val 0
+        if {[info exists mom_stepover_scallop] && [string is double -strict $mom_stepover_scallop]} {
+            set max_val $mom_stepover_scallop
+            set any_val 1
+        }
+        if {[info exists mom_horizonal_limit] && [string is double -strict $mom_horizonal_limit]} {
+            if {!$any_val || $mom_horizonal_limit > $max_val} {
+                set max_val $mom_horizonal_limit
+                set any_val 1
+            }
+        }
+        if {[info exists mom_vertical_limit] && [string is double -strict $mom_vertical_limit]} {
+            if {!$any_val || $mom_vertical_limit > $max_val} {
+                set max_val $mom_vertical_limit
+                set any_val 1
+            }
+        }
+        if {$any_val} {
+            set final_ap [pb__round_param_4dec $max_val]
         }
     } elseif {$st eq "WALL_FINISH-BARREL_SWARF"} {
         if {[info exists mom_depth_per_cut]} {
             set final_ap [pb__round_param_4dec $mom_depth_per_cut]
         }
     } elseif {$st eq "ZLEVEL_5AXIS"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_global_cut_depth]} {
+            set final_ap [pb__round_param_4dec $mom_global_cut_depth]
         }
     } elseif {$st eq "5_AXIS_DEBURRING"} {
-        if {[info exists mom_depth_per_cut]} {
-            set final_ap [pb__round_param_4dec $mom_depth_per_cut]
+        if {[info exists mom_deburring_edge_depth]} {
+            set final_ap [pb__round_param_4dec $mom_deburring_edge_depth]
         }
     }
 }
@@ -9332,6 +9361,7 @@ set row_fields [list \
     [pb__mom_var_or_na mom_template_type] \
     [pb__mom_var_or_na mom_template_subtype] \
     $operation_type \
+    [pb__mom_var_or_na mom_tool_type] \
     [pb__round_param_4dec $spindle] \
     [pb__round_param_4dec $feed] \
     [pb__round_param_4dec $cycle_time] \
@@ -9372,6 +9402,7 @@ set row_fields [list \
     [pb__mom_var_or_na mom_vertical_pitch_value_source] \
     [pb__mom_var_or_na mom_depth_increment_distance_source] \
     [pb__mom_var_or_na mom_depth_increment_distance] \
+    [pb__mom_var_or_na mom_cut_level_distance] \
 ]
 
 set quoted_row [join [lmap field $row_fields {pb__csv_quote $field}] ","]
