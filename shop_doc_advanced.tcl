@@ -6041,8 +6041,12 @@ if {[catch {open $csv_output_path w} file_handle]} {
    MOM_output_literal ";; ERROR: Cannot open CSV temp file: $csv_output_path"
 }
 
+fconfigure $file_handle -encoding cp1252
+
+set csv_row_counter 0
+
 # CSV Header: fixed columns first, then mom_ parameter columns (brackets escaped for Tcl)
-puts $file_handle "mom_path_name,mom_tool_name,mom_tool_diameter,mom_tool_flutes_number,mom_spindle_rpm,mom_feed_rate,mom_surface_speed,mom_feed_per_tooth,Final Ae,Final Ap,Material,Surface Type,Milling Type,Tool Type,Strategy Type,mom_template_type,mom_template_subtype,mom_operation_type,mom_tool_type,Cycle Time (min),mom_tool_corner1_radius,mom_tool_flute_length,mom_stock_part,mom_stock_floor,mom_wall_stock,mom_z_depth_offset,mom_stepover_distance,path_stepover_1,path_stepover_2,path_stepover_3,mom_stepover_distance_source,mom_stepover_percent,mom_stepover_scallop,mom_stepover_type,mom_stepover_variable_max_min\[0\],mom_stepover_variable_max_min\[1\],mom_step_points\[2\],mom_wall_increment,mom_maximal_stepover_distance,mom_deburring_edge_depth,mom_depth_per_cut,mom_cut_level_max_depth,mom_global_cut_depth,mom_step_ahead_distance,mom_multi_depth_cut_increment,mom_horizonal_limit,mom_vertical_limit,mom_axial_stepover_distance,mom_cycle_step1,mom_cycle_type,mom_helical_ramp_angle,mom_vertical_pitch_type,mom_vertical_pitch_value,mom_vertical_pitch_value_source,mom_depth_increment_distance_source,mom_depth_increment_distance,mom_cut_level_distance"
+puts $file_handle {No.,Operation Name,Tool Name,"Diameter, Ø (mm)",Number of teeth/flutes (Z),"Tool Speed, n (RPM)","Feed Rate, Vf (mm/min)","Surface Speed,Vc (m/min)","Feed per tooth, Fz (mm)","Radial D.O.C, ae (mm)","Axial D.O.C, ap (mm)",Material,Surface Type,Milling Type,Tool Type,Strategy Type,mom_template_type,mom_template_subtype,mom_operation_type,mom_tool_type,Cycle Time (min),mom_tool_corner1_radius,mom_tool_flute_length,mom_stock_part,mom_stock_floor,mom_wall_stock,mom_z_depth_offset,mom_stepover_distance,path_stepover_1,path_stepover_2,path_stepover_3,mom_stepover_distance_source,mom_stepover_percent,mom_stepover_scallop,mom_stepover_type,mom_stepover_variable_max_min[0],mom_stepover_variable_max_min[1],mom_step_points[2],mom_wall_increment,mom_maximal_stepover_distance,mom_deburring_edge_depth,mom_depth_per_cut,mom_cut_level_max_depth,mom_global_cut_depth,mom_step_ahead_distance,mom_multi_depth_cut_increment,mom_horizonal_limit,mom_vertical_limit,mom_axial_stepover_distance,mom_cycle_step1,mom_cycle_type,mom_helical_ramp_angle,mom_vertical_pitch_type,mom_vertical_pitch_value,mom_vertical_pitch_value_source,mom_depth_increment_distance_source,mom_depth_increment_distance,mom_cut_level_distance}
 }
 
 
@@ -8551,6 +8555,7 @@ global mom_vertical_pitch_type mom_vertical_pitch_value_source mom_vertical_pitc
 global mom_helical_ramp_angle
 global mom_depth_increment_distance mom_depth_increment_distance_source
 global mom_tool_type
+global csv_row_counter
 
 # --- Operation Type ---
 if {[info exists mom_operation_type] && $mom_operation_type ne ""} {
@@ -9421,9 +9426,12 @@ if {[info exists mom_template_type] && $mom_template_type eq "hole_making"} {
 }
 }
 
+incr csv_row_counter
+
 set row_fields [list \
-    [pb__sanitize_str [pb__mom_var_or_na mom_path_name]] \
-    [pb__sanitize_str [pb__mom_var_or_na mom_tool_name]] \
+    $csv_row_counter \
+    [pb__mom_var_or_na mom_path_name] \
+    [pb__mom_var_or_na mom_tool_name] \
     [pb__round_param_4dec $tool_dia] \
     [pb__mom_var_or_na mom_tool_flutes_number] \
     [pb__round_param_4dec $spindle] \
