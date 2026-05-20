@@ -203,10 +203,11 @@ proc PB_CMD___log_revisions { } {
 	# CSV to XLSX Conversion Settings
 	#=============================================================
 	set mom_sys_csv_to_xlsx_enabled     1
-	set mom_sys_converter_dir          "C:/Users/Public/Documents/shop_doc_advanced/shop_doc_advanced"
-	set mom_sys_bat_file               "convert_csv_to_xlsx.bat"
-
-
+	# Folder containing convert_csv_to_xlsx.vbs — same directory as this post (.tcl)
+	if { ![info exists mom_sys_this_post_dir] } {
+		set mom_sys_this_post_dir [file dirname [info script]]
+	}
+	set mom_sys_converter_dir          $mom_sys_this_post_dir
 
 
   set mom_sys_use_default_unit_fragment         "ON"
@@ -5471,22 +5472,30 @@ proc PB_CMD_customize_output_mode { } {
 #=============================================================
 proc PB_CMD_convert_csv_to_xlsx { } {
 #=============================================================
-   global mom_sys_csv_to_xlsx_enabled mom_sys_converter_dir mom_sys_bat_file ptp_file_name
+   global mom_sys_csv_to_xlsx_enabled mom_sys_converter_dir ptp_file_name
+   global mom_sys_this_post_dir
 
    if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } { return }
    if { ![info exists ptp_file_name] || ![file exists $ptp_file_name] } { return }
 
    set csv_file  $ptp_file_name
    set xlsx_file [file rootname $ptp_file_name].xlsx
-   set vbs_path  [file join $mom_sys_converter_dir "convert_csv_to_xlsx.vbs"]
+
+   if { ![info exists mom_sys_converter_dir] || $mom_sys_converter_dir eq "" } {
+      if { ![info exists mom_sys_this_post_dir] } {
+         set mom_sys_this_post_dir [file dirname [info script]]
+      }
+      set mom_sys_converter_dir $mom_sys_this_post_dir
+   }
+   set vbs_path [file join $mom_sys_converter_dir "convert_csv_to_xlsx.vbs"]
 
    if { ![file exists $vbs_path] } {
-      MOM_output_literal "; WARNING: VBS not found: $vbs_path"
+      MOM_output_literal "; WARNING: VBS not found. Expected next to post: $vbs_path"
       return
    }
 
-   # Write a temp launcher BAT — avoids all Tcl quoting/backslash issues
-   set tmp_bat [file join $mom_sys_converter_dir "_launch_convert.bat"]
+   # Temp launcher beside CSV output (writable; avoid Program Files post folder)
+   set tmp_bat [file join [file dirname $csv_file] "_launch_convert_shopdoc.bat"]
    catch {
       set fh [open $tmp_bat w]
       puts $fh "@echo off"
@@ -6045,8 +6054,73 @@ fconfigure $file_handle -encoding cp1252
 
 set csv_row_counter 0
 
-# CSV Header: fixed columns first, then mom_ parameter columns (brackets escaped for Tcl)
-puts $file_handle {No.,Operation Name,Tool Name,"Diameter, Ø (mm)",Number of teeth/flutes (Z),"Tool Speed, n (RPM)","Feed Rate, Vf (mm/min)","Surface Speed,Vc (m/min)","Feed per tooth, Fz (mm)","Radial D.O.C, ae (mm)","Axial D.O.C, ap (mm)",Material,Surface Type,Milling Type,Tool Type,Strategy Type,mom_template_type,mom_template_subtype,mom_operation_type,mom_tool_type,Cycle Time (min),mom_tool_corner1_radius,mom_tool_flute_length,mom_stock_part,mom_stock_floor,mom_wall_stock,mom_z_depth_offset,mom_stepover_distance,path_stepover_1,path_stepover_2,path_stepover_3,mom_stepover_distance_source,mom_stepover_percent,mom_stepover_scallop,mom_stepover_type,mom_stepover_variable_max_min[0],mom_stepover_variable_max_min[1],mom_step_points[2],mom_wall_increment,mom_maximal_stepover_distance,mom_deburring_edge_depth,mom_depth_per_cut,mom_cut_level_max_depth,mom_global_cut_depth,mom_step_ahead_distance,mom_multi_depth_cut_increment,mom_horizonal_limit,mom_vertical_limit,mom_axial_stepover_distance,mom_cycle_step1,mom_cycle_type,mom_helical_ramp_angle,mom_vertical_pitch_type,mom_vertical_pitch_value,mom_vertical_pitch_value_source,mom_depth_increment_distance_source,mom_depth_increment_distance,mom_cut_level_distance}
+# CSV Header: fixed columns first, then mom_ parameter columns
+puts $file_handle [join [list \
+    No. \
+    {A/C Type} \
+    {Part Number} \
+    {Material Type} \
+    "\"Tool Ref.\nNumber\"" \
+    {Cutter Description} \
+    {Cutter Type} \
+    {Tool Type (Carbide/HSS/PCD)} \
+    "\"Finish Type \n(Finish / Controlled Roughing / Free Roughing)\"" \
+    {Tool Diameter (mm)} \
+    {Number of Flutes (teeth)} \
+    {"Feed Rate 100% (mm/min)"} \
+    {"Speed Rate 100% (rpm)"} \
+    {Axial (ap) D.O.C (mm)} \
+    {Radial (ae) D.O.C (mm)} \
+    "\"Feed per Tooth \[Fz\]\n(mm/tooth)\"" \
+    {Speed Vc (m/min)} \
+    {Justification} \
+    {Ramp Angle (Deg)} \
+    {Approach / Plunge Feed (mm/min)} \
+    {Strategy Type} \
+    {Operation Name} \
+    mom_template_type \
+    mom_template_subtype \
+    mom_operation_type \
+    mom_tool_type \
+    {Cycle Time (min)} \
+    mom_tool_corner1_radius \
+    mom_tool_flute_length \
+    mom_stock_part \
+    mom_stock_floor \
+    mom_wall_stock \
+    mom_z_depth_offset \
+    mom_stepover_distance \
+    path_stepover_1 \
+    path_stepover_2 \
+    path_stepover_3 \
+    mom_stepover_distance_source \
+    mom_stepover_percent \
+    mom_stepover_scallop \
+    mom_stepover_type \
+    {mom_stepover_variable_max_min[0]} \
+    {mom_stepover_variable_max_min[1]} \
+    {mom_step_points[2]} \
+    mom_wall_increment \
+    mom_maximal_stepover_distance \
+    mom_deburring_edge_depth \
+    mom_depth_per_cut \
+    mom_cut_level_max_depth \
+    mom_global_cut_depth \
+    mom_step_ahead_distance \
+    mom_multi_depth_cut_increment \
+    mom_horizonal_limit \
+    mom_vertical_limit \
+    mom_axial_stepover_distance \
+    mom_cycle_step1 \
+    mom_cycle_type \
+    mom_helical_ramp_angle \
+    mom_vertical_pitch_type \
+    mom_vertical_pitch_value \
+    mom_vertical_pitch_value_source \
+    mom_depth_increment_distance_source \
+    mom_depth_increment_distance \
+    mom_cut_level_distance \
+] ","]
 }
 
 
@@ -8539,9 +8613,10 @@ global mom_operation_name mom_path_name mom_operation_type mom_template_type mom
 global mom_spindle_rpm
 global mom_feed_cut_value mom_feed_rate
 global mom_machine_time mom_sys_machine_time
-global mom_tool_diameter mom_tool_corner1_radius mom_tool_flute_length mom_tool_name mom_tool_flutes_number
+global mom_tool_diameter mom_tool_corner1_radius mom_tool_flute_length mom_tool_name mom_tool_flutes_number mom_tool_number
 global mom_surface_speed mom_feed_per_tooth
 global mom_stock_part mom_stock_floor mom_wall_stock
+global mom_part_name
 global mom_z_depth_offset mom_stepover_distance mom_stepover_distance_source
 global mom_stepover_percent mom_stepover_scallop mom_stepover_type
 global mom_stepover_variable_max_min mom_step_points
@@ -9428,23 +9503,42 @@ if {[info exists mom_template_type] && $mom_template_type eq "hole_making"} {
 
 incr csv_row_counter
 
+set tool_ref_number ""
+if {[info exists mom_tool_number] && $mom_tool_number ne "" && [string is double -strict $mom_tool_number]} {
+    set _tn [expr {int(round($mom_tool_number))}]
+    if {$_tn >= 0} {
+        set tool_ref_number [format "T%02d" $_tn]
+    }
+}
+
+set csv_part_number ""
+if {[info exists mom_part_name] && [string trim $mom_part_name] ne ""} {
+    set csv_part_number [file rootname [file tail [string trim $mom_part_name]]]
+}
+
 set row_fields [list \
     $csv_row_counter \
-    [pb__mom_var_or_na mom_path_name] \
+    "" \
+    $csv_part_number \
+    "" \
+    $tool_ref_number \
     [pb__mom_var_or_na mom_tool_name] \
+    "" \
+    "" \
+    "" \
     [pb__round_param_4dec $tool_dia] \
     [pb__mom_var_or_na mom_tool_flutes_number] \
-    [pb__round_param_4dec $spindle] \
     [pb__round_param_4dec $feed] \
-    [pb__mom_var_or_na mom_surface_speed] \
-    [pb__mom_var_or_na mom_feed_per_tooth] \
-    $final_ae \
+    [pb__round_param_4dec $spindle] \
     $final_ap \
+    $final_ae \
+    [pb__mom_var_or_na mom_feed_per_tooth] \
+    [pb__mom_var_or_na mom_surface_speed] \
     "" \
     "" \
     "" \
     "" \
-    "" \
+    [pb__mom_var_or_na mom_path_name] \
     [pb__mom_var_or_na mom_template_type] \
     [pb__mom_var_or_na mom_template_subtype] \
     $operation_type \

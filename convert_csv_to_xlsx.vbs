@@ -40,12 +40,42 @@ Set objWorksheet = objWorkbook.Worksheets(1)
 lastRow = objWorksheet.UsedRange.Rows.Count
 WScript.Echo "CSV has " & lastRow & " rows"
 
-' Find column function
+' Find column function (row 1 exact match after trim)
 Function FindColumn(ws, colName)
     FindColumn = 0
     For col = 1 To ws.UsedRange.Columns.Count
         If Trim(ws.Cells(1, col).Value) = colName Then
             FindColumn = col
+            Exit Function
+        End If
+    Next
+End Function
+
+' Normalize newlines in header cell (CSV/LF vs Excel CRLF)
+Function NormalizeHeaderText(v)
+    Dim s
+    s = CStr(v)
+    s = Replace(s, vbCrLf, Chr(10))
+    s = Replace(s, vbCr, Chr(10))
+    NormalizeHeaderText = s
+End Function
+
+' Multiline Finish Type header: match after normalizing line breaks, with prefix fallback
+Function FindFinishTypeColumn(ws)
+    Dim col, v, vNorm, expected
+    FindFinishTypeColumn = 0
+    expected = NormalizeHeaderText("Finish Type " & Chr(10) & "(Finish / Controlled Roughing / Free Roughing)")
+    For col = 1 To ws.UsedRange.Columns.Count
+        vNorm = NormalizeHeaderText(ws.Cells(1, col).Value)
+        If vNorm = expected Then
+            FindFinishTypeColumn = col
+            Exit Function
+        End If
+    Next
+    For col = 1 To ws.UsedRange.Columns.Count
+        v = NormalizeHeaderText(ws.Cells(1, col).Value)
+        If InStr(1, v, "Finish Type", 1) = 1 And InStr(1, v, "(Finish / Controlled Roughing / Free Roughing)", 1) > 0 Then
+            FindFinishTypeColumn = col
             Exit Function
         End If
     Next
@@ -69,25 +99,19 @@ End Sub
 ' ===== CUSTOMIZE THESE LISTS =====
 materialList = Join(Array( _
     "Aluminium", _
-    "Steel", _
-    "Stainless Steel", _
     "Titanium", _
-    "Brass", _
-    "Copper", _
-    "Plastic" _
+    "Steel", _
+    "Bronze" _
 ), ",")
 
-surfaceTypeList = Join(Array( _
-    "Roughing", _
-    "Finishing" _
-), ",")
+surfaceTypeList = "Finish,Controlled Roughing,Free Roughing"
 
 millingTypeList = Join(Array( _
-    "End milling", _
-    "Face milling", _
+    "End Milling", _
+    "Face Milling", _
     "Drilling", _
-    "Tapping", _
-    "Reaming" _
+    "Reaming", _
+    "Turning" _
 ), ",")
 
 toolTypeList = Join(Array( _
@@ -101,22 +125,6 @@ strategyTypeList = Join(Array( _
     "HSM" _
 ), ",")
 
-' Find columns and add validation
-col = FindColumn(objWorksheet, "Material")
-If col > 0 Then AddValidation objWorksheet, col, lastRow, materialList
-
-col = FindColumn(objWorksheet, "Surface Type")
-If col > 0 Then AddValidation objWorksheet, col, lastRow, surfaceTypeList
-
-col = FindColumn(objWorksheet, "Milling Type")
-If col > 0 Then AddValidation objWorksheet, col, lastRow, millingTypeList
-
-col = FindColumn(objWorksheet, "Tool Type")
-If col > 0 Then AddValidation objWorksheet, col, lastRow, toolTypeList
-
-col = FindColumn(objWorksheet, "Strategy Type")
-If col > 0 Then AddValidation objWorksheet, col, lastRow, strategyTypeList
-
 ' Format as Table
 Set objRange = objWorksheet.Range("A1").CurrentRegion
 Set tbl = objWorksheet.ListObjects.Add(1, objRange, , 1)
@@ -129,6 +137,26 @@ objRange.VerticalAlignment = -4108
 
 ' AutoFit
 objWorksheet.Columns.AutoFit
+
+' Multiline header labels (e.g. LF inside CSV quoted cells): wrap row 1
+objWorksheet.Rows(1).WrapText = True
+objWorksheet.Rows(1).AutoFit
+
+' Data validation (after ListObject: table creation can clear prior validation)
+col = FindColumn(objWorksheet, "Material Type")
+If col > 0 Then AddValidation objWorksheet, col, lastRow, materialList
+
+col = FindFinishTypeColumn(objWorksheet)
+If col > 0 Then AddValidation objWorksheet, col, lastRow, surfaceTypeList
+
+col = FindColumn(objWorksheet, "Cutter Type")
+If col > 0 Then AddValidation objWorksheet, col, lastRow, millingTypeList
+
+col = FindColumn(objWorksheet, "Tool Type (Carbide/HSS/PCD)")
+If col > 0 Then AddValidation objWorksheet, col, lastRow, toolTypeList
+
+col = FindColumn(objWorksheet, "Strategy Type")
+If col > 0 Then AddValidation objWorksheet, col, lastRow, strategyTypeList
 
 ' Freeze panes
 objWorksheet.Activate
