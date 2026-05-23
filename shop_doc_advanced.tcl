@@ -203,6 +203,9 @@ proc PB_CMD___log_revisions { } {
 	# CSV to XLSX Conversion Settings
 	#=============================================================
 	set mom_sys_csv_to_xlsx_enabled     1
+	# Append detailed diagnostics at bottom of CSV (3 blank rows + ERROR LOG table)
+	#   0 = off   1 = on
+	set mom_sys_csv_error_log_enabled   1
 	# Folder containing convert_csv_to_xlsx.vbs — same directory as this post (.tcl)
 	if { ![info exists mom_sys_this_post_dir] } {
 		set mom_sys_this_post_dir [file dirname [info script]]
@@ -542,13 +545,15 @@ proc MOM_end_of_program { } {
    global ptp_file_name csv_output_path
    if {[info exists ptp_file_name] && [info exists csv_output_path]} {
       MOM_close_output_file $ptp_file_name
-      catch {
-         file copy -force $csv_output_path $ptp_file_name
-         file delete -force $csv_output_path
+      if {[catch {file copy -force $csv_output_path $ptp_file_name} copy_err]} {
+         PB_CMD_csv_log_add "ERROR" "CSV" "Could not copy shop-doc temp CSV to output file: $copy_err"
+         PB_CMD_csv_log_add "ERROR" "Permission" "Temp CSV: $csv_output_path  Output: $ptp_file_name"
+      } else {
+         catch { file delete -force $csv_output_path }
       }
    }
    
-	# Convert to XLSX + delete CSV
+	# Convert to XLSX, append optional error log to CSV, delete CSV when XLSX succeeds
 	PB_CMD_convert_csv_to_xlsx
 
    
@@ -5470,51 +5475,352 @@ proc PB_CMD_customize_output_mode { } {
 
 
 #=============================================================
+proc PB_CMD_csv_log_enabled { } {
+#=============================================================
+   global mom_sys_csv_error_log_enabled
+   if { ![info exists mom_sys_csv_error_log_enabled] } { return 0 }
+   if { $mom_sys_csv_error_log_enabled == 0 } { return 0 }
+   return 1
+}
+
+
+#=============================================================
+proc PB_CMD_csv_log_init { } {
+#=============================================================
+   set ::shop_doc_error_log {}
+}
+
+
+#=============================================================
+proc PB_CMD_csv_log_add { level category message } {
+#=============================================================
+   if { ![PB_CMD_csv_log_enabled] } { return }
+   if { ![info exists ::shop_doc_error_log] } { PB_CMD_csv_log_init }
+   lappend ::shop_doc_error_log [list $level $category $message]
+}
+
+
+#=============================================================
+proc PB_CMD_csv_log_quote { field } {
+#=============================================================
+   set field [string map [list "\"" "\"\""] $field]
+   return [format "\"%s\"" $field]
+}
+
+
+#=============================================================
+proc PB_CMD_csv_safe_env { name } {
+#=============================================================
+   if { [info exists ::env($name)] } {
+      if { [string length $::env($name)] > 0 } {
+         return $::env($name)
+      }
+   }
+   return "(not set)"
+}
+
+
+#=============================================================
+proc PB_CMD_csv_find_cscript { } {
+#=============================================================
+   if { [string compare $::tcl_platform(platform) "windows"] != 0 } {
+      return ""
+   }
+
+   set where_out ""
+   if { ![catch {exec where cscript} where_out] } {
+      set where_out [string trim $where_out]
+      if { [string length $where_out] > 0 } {
+         return [string trim [lindex [split $where_out "\n"] 0]]
+      }
+   }
+
+   set cscript_sys32 [file join $::env(WINDIR) System32 cscript.exe]
+   set cscript_syswow [file join $::env(WINDIR) SysWOW64 cscript.exe]
+
+   if { [file exists $cscript_sys32] } { return $cscript_sys32 }
+   if { [file exists $cscript_syswow] } { return $cscript_syswow }
+
+   return ""
+}
+
+
+#=============================================================
+proc PB_CMD_csv_check_excel_registered { } {
+#=============================================================
+   if { [string compare $::tcl_platform(platform) "windows"] != 0 } { return 0 }
+
+   set reg_out ""
+   if { ![catch {exec reg query HKEY_CLASSES_ROOT\\Excel.Application /ve} reg_out] } { return 1 }
+   if { ![catch {exec reg query HKEY_CLASSES_ROOT\\Excel.Application.16 /ve} reg_out] } { return 1 }
+   return 0
+}
+
+
+#=============================================================
+proc PB_CMD_csv_check_dir_writable { dir } {
+#=============================================================
+   if { ![file exists $dir] } {
+      return "Directory does not exist: $dir"
+   }
+   if { ![file writable $dir] } {
+      return "Directory is not writable (permission denied): $dir"
+   }
+
+   set probe [file join $dir "_shopdoc_probe_[clock clicks].tmp"]
+   set probe_err ""
+   if { [catch {
+      set fh [open $probe w]
+      puts $fh probe
+      close $fh
+      file delete -force $probe
+   } probe_err] } {
+      return "Cannot create temp file in directory (permission, policy, or antivirus): $dir ($probe_err)"
+   }
+
+   return ""
+}
+
+
+#=============================================================
+proc PB_CMD_csv_parse_converter_output { output } {
+#=============================================================
+   foreach line [split $output "\n"] {
+      set line [string trim $line]
+      if { [string length $line] == 0 } { continue }
+      if { [string match "SHOPDOC_LOG|*" $line] } {
+         set parts [split $line "|"]
+         if { [llength $parts] >= 4 } {
+            PB_CMD_csv_log_add [lindex $parts 1] [lindex $parts 2] [join [lrange $parts 3 end] "|"]
+         }
+      } elseif { [string match "ERROR:*" $line] } {
+         PB_CMD_csv_log_add "ERROR" "Converter" [string range $line 6 end]
+      } elseif { [string match "SUCCESS:*" $line] } {
+         PB_CMD_csv_log_add "INFO" "Converter" [string range $line 8 end]
+      } else {
+         PB_CMD_csv_log_add "INFO" "Converter" $line
+      }
+   }
+}
+
+
+#=============================================================
+proc PB_CMD_csv_run_preflight { csv_file xlsx_file vbs_path } {
+#=============================================================
+   global mom_sys_converter_dir mom_sys_this_post_dir mom_sys_csv_to_xlsx_enabled
+
+   set errlog_flag 0
+   if { [PB_CMD_csv_log_enabled] } { set errlog_flag 1 }
+
+   PB_CMD_csv_log_add "INFO" "System" "Platform: $::tcl_platform(platform) $::tcl_platform(os) $::tcl_platform(osVersion)"
+   PB_CMD_csv_log_add "INFO" "System" "User: [PB_CMD_csv_safe_env USERNAME]  Computer: [PB_CMD_csv_safe_env COMPUTERNAME]"
+   PB_CMD_csv_log_add "INFO" "System" "Post directory: $mom_sys_this_post_dir"
+   PB_CMD_csv_log_add "INFO" "System" "Converter directory: $mom_sys_converter_dir"
+   PB_CMD_csv_log_add "INFO" "Settings" "mom_sys_csv_to_xlsx_enabled=$mom_sys_csv_to_xlsx_enabled"
+   PB_CMD_csv_log_add "INFO" "Settings" "mom_sys_csv_error_log_enabled=$errlog_flag"
+
+   if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } {
+      PB_CMD_csv_log_add "INFO" "XLSX" "CSV-to-XLSX conversion is disabled in post settings"
+      return
+   }
+
+   PB_CMD_csv_log_add "INFO" "Paths" "CSV output: $csv_file"
+   PB_CMD_csv_log_add "INFO" "Paths" "XLSX target: $xlsx_file"
+   PB_CMD_csv_log_add "INFO" "Paths" "VBS script: $vbs_path"
+
+   if { ![file exists $csv_file] } {
+      PB_CMD_csv_log_add "ERROR" "CSV" "Output CSV file not found: $csv_file"
+   } elseif { [catch {set csv_probe [open $csv_file r]; close $csv_probe}] } {
+      PB_CMD_csv_log_add "ERROR" "CSV" "Output CSV file is not readable: $csv_file"
+   } else {
+      PB_CMD_csv_log_add "INFO" "CSV" "Output CSV exists ([file size $csv_file] bytes)"
+   }
+
+   if { ![file exists $vbs_path] } {
+      PB_CMD_csv_log_add "ERROR" "Deploy" "convert_csv_to_xlsx.vbs not found next to post. Expected: $vbs_path"
+      PB_CMD_csv_log_add "ERROR" "Deploy" "Copy convert_csv_to_xlsx.vbs into the same folder as shop_doc_advanced.tcl"
+   } else {
+      PB_CMD_csv_log_add "INFO" "Deploy" "convert_csv_to_xlsx.vbs found ([file size $vbs_path] bytes)"
+   }
+
+   set csv_dir [file dirname $csv_file]
+   set dir_err [PB_CMD_csv_check_dir_writable $csv_dir]
+   if { [string length $dir_err] > 0 } {
+      PB_CMD_csv_log_add "ERROR" "Permission" $dir_err
+   } else {
+      PB_CMD_csv_log_add "INFO" "Permission" "Output directory is writable: $csv_dir"
+   }
+
+   set cscript [PB_CMD_csv_find_cscript]
+   if { [string length $cscript] == 0 } {
+      PB_CMD_csv_log_add "ERROR" "Policy" "cscript.exe not found. Windows Script Host may be disabled by IT policy (AppLocker / GPO)."
+   } else {
+      PB_CMD_csv_log_add "INFO" "Runtime" "cscript.exe: $cscript"
+   }
+
+   if { [string compare $::tcl_platform(platform) "windows"] == 0 } {
+      if { [PB_CMD_csv_check_excel_registered] } {
+         PB_CMD_csv_log_add "INFO" "Excel" "Excel.Application COM class is registered (Excel likely installed)"
+      } else {
+         PB_CMD_csv_log_add "ERROR" "Excel" "Excel.Application not registered. Desktop Microsoft Excel may be missing, not activated, or COM registration is broken."
+         PB_CMD_csv_log_add "ERROR" "Excel" "Office Online / Excel Viewer cannot run COM automation required for XLSX conversion."
+      }
+   }
+
+   if { [file exists $xlsx_file] } {
+      PB_CMD_csv_log_add "WARN" "XLSX" "Target XLSX already exists and may be locked: $xlsx_file"
+   }
+}
+
+
+#=============================================================
+proc PB_CMD_csv_log_flush { csv_file } {
+#=============================================================
+   if { ![PB_CMD_csv_log_enabled] } { return }
+   if { ![info exists ::shop_doc_error_log] || [llength $::shop_doc_error_log] == 0 } { return }
+   if { ![info exists csv_file] || [string length $csv_file] == 0 || ![file exists $csv_file] } {
+      return
+   }
+
+   set flush_err ""
+   if { [catch {
+      set fh [open $csv_file a]
+      fconfigure $fh -encoding cp1252
+      puts $fh ""
+      puts $fh ""
+      puts $fh ""
+      set hdr [join [list \
+         [PB_CMD_csv_log_quote "ERROR LOG"] \
+         [PB_CMD_csv_log_quote "Timestamp"] \
+         [PB_CMD_csv_log_quote "Level"] \
+         [PB_CMD_csv_log_quote "Category"] \
+         [PB_CMD_csv_log_quote "Message"] \
+      ] ,]
+      puts $fh $hdr
+
+      set ts [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
+      foreach entry $::shop_doc_error_log {
+         lassign $entry level category message
+         set row [join [list \
+            [PB_CMD_csv_log_quote ""] \
+            [PB_CMD_csv_log_quote $ts] \
+            [PB_CMD_csv_log_quote $level] \
+            [PB_CMD_csv_log_quote $category] \
+            [PB_CMD_csv_log_quote $message] \
+         ] ,]
+         puts $fh $row
+      }
+      close $fh
+   } flush_err] } {
+      catch { MOM_output_literal "; WARNING: Could not append error log to CSV: $flush_err" }
+   }
+}
+
+
+#=============================================================
 proc PB_CMD_convert_csv_to_xlsx { } {
 #=============================================================
    global mom_sys_csv_to_xlsx_enabled mom_sys_converter_dir ptp_file_name
-   global mom_sys_this_post_dir
+   global mom_sys_this_post_dir csv_output_path
 
-   if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } { return }
-   if { ![info exists ptp_file_name] || ![file exists $ptp_file_name] } { return }
+   if { ![info exists mom_sys_this_post_dir] } {
+      set mom_sys_this_post_dir [file dirname [info script]]
+   }
+   if { ![info exists mom_sys_converter_dir] || [string length $mom_sys_converter_dir] == 0 } {
+      set mom_sys_converter_dir $mom_sys_this_post_dir
+   }
+
+   if { ![info exists ptp_file_name] } {
+      PB_CMD_csv_log_add "ERROR" "CSV" "Post output file (ptp_file_name) was not set by NX"
+      if { [info exists csv_output_path] && [file exists $csv_output_path] } {
+         PB_CMD_csv_log_flush $csv_output_path
+      }
+      return
+   }
 
    set csv_file  $ptp_file_name
    set xlsx_file [file rootname $ptp_file_name].xlsx
+   set vbs_path  [file join $mom_sys_converter_dir "convert_csv_to_xlsx.vbs"]
 
-   if { ![info exists mom_sys_converter_dir] || $mom_sys_converter_dir eq "" } {
-      if { ![info exists mom_sys_this_post_dir] } {
-         set mom_sys_this_post_dir [file dirname [info script]]
-      }
-      set mom_sys_converter_dir $mom_sys_this_post_dir
-   }
-   set vbs_path [file join $mom_sys_converter_dir "convert_csv_to_xlsx.vbs"]
+   PB_CMD_csv_run_preflight $csv_file $xlsx_file $vbs_path
 
-   if { ![file exists $vbs_path] } {
-      MOM_output_literal "; WARNING: VBS not found. Expected next to post: $vbs_path"
+   if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } {
+      PB_CMD_csv_log_flush $csv_file
       return
    }
 
-   # Temp launcher beside CSV output (writable; avoid Program Files post folder)
-   set tmp_bat [file join [file dirname $csv_file] "_launch_convert_shopdoc.bat"]
-   catch {
+   if { ![file exists $csv_file] } {
+      PB_CMD_csv_log_add "ERROR" "CSV" "Cannot convert - CSV output file missing: $csv_file"
+      PB_CMD_csv_log_flush $csv_file
+      return
+   }
+
+   if { ![file exists $vbs_path] } {
+      PB_CMD_csv_log_flush $csv_file
+      return
+   }
+
+   set csv_dir [file dirname $csv_file]
+   set csv_dir_err [PB_CMD_csv_check_dir_writable $csv_dir]
+   if { [string length $csv_dir_err] > 0 } {
+      PB_CMD_csv_log_add "ERROR" "Permission" "Cannot launch converter - output folder is not writable: $csv_dir"
+      PB_CMD_csv_log_flush $csv_file
+      return
+   }
+
+   set cscript [PB_CMD_csv_find_cscript]
+   if { [string length $cscript] == 0 } {
+      PB_CMD_csv_log_flush $csv_file
+      return
+   }
+
+   set tmp_bat [file join $csv_dir "_launch_convert_shopdoc.bat"]
+   set exec_err ""
+   set exec_out ""
+
+   set bat_err ""
+   if { [catch {
       set fh [open $tmp_bat w]
       puts $fh "@echo off"
-      puts $fh "cscript //nologo \"[file nativename $vbs_path]\" \"[file nativename $csv_file]\" \"[file nativename $xlsx_file]\""
+      puts $fh "\"[file nativename $cscript]\" //nologo \"[file nativename $vbs_path]\" \"[file nativename $csv_file]\" \"[file nativename $xlsx_file]\" 2>&1"
       close $fh
+   } bat_err] } {
+      PB_CMD_csv_log_add "ERROR" "Permission" "Could not write launcher batch file: $tmp_bat ($bat_err)"
+      PB_CMD_csv_log_flush $csv_file
+      return
    }
 
    if { ![file exists $tmp_bat] } {
-      MOM_output_literal "; WARNING: Could not write launcher BAT"
+      PB_CMD_csv_log_add "ERROR" "Permission" "Launcher batch file was not created: $tmp_bat"
+      PB_CMD_csv_log_flush $csv_file
       return
    }
 
-   catch {exec cmd /c [file nativename $tmp_bat]} result
-   catch {file delete -force $tmp_bat}
+   PB_CMD_csv_log_add "INFO" "Runtime" "Launching converter via: $tmp_bat"
+
+   if { [catch {exec cmd /c [file nativename $tmp_bat]} exec_out] } {
+      set exec_err $exec_out
+      PB_CMD_csv_log_add "ERROR" "Runtime" "cscript launch failed: $exec_out"
+   }
+
+   catch { file delete -force $tmp_bat }
+   PB_CMD_csv_parse_converter_output $exec_out
 
    if { [file exists $xlsx_file] } {
+      PB_CMD_csv_log_add "INFO" "XLSX" "Conversion succeeded: [file tail $xlsx_file] ([file size $xlsx_file] bytes)"
       MOM_output_literal "; XLSX output: [file tail $xlsx_file]"
    } else {
-      MOM_output_literal "; WARNING: XLSX not generated. cscript output: $result"
+      PB_CMD_csv_log_add "ERROR" "XLSX" "Conversion failed - XLSX file was not created: [file tail $xlsx_file]"
+      if { [string length $exec_err] > 0 } {
+         PB_CMD_csv_log_add "ERROR" "Runtime" "Process exit detail: $exec_err"
+      }
+      MOM_output_literal "; WARNING: XLSX not generated - see ERROR LOG at bottom of CSV"
+   }
+
+   PB_CMD_csv_log_flush $csv_file
+
+   if { [file exists $xlsx_file] } {
+      catch { file delete -force $csv_file }
    }
 }
 
@@ -6037,6 +6343,8 @@ proc PB_CMD_header_start { } {
 global mom_output_file_directory mom_output_file_basename
 global file_handle csv_output_path
 
+PB_CMD_csv_log_init
+
 # CSV-only mode: set MOM_CSV_ONLY=1 (e.g. in environment) to skip G00/G01/G02 path
 # output and only write cutting parameters to CSV (much faster for large toolpaths).
 if {[info exists ::env(MOM_CSV_ONLY)] && $::env(MOM_CSV_ONLY) != "0" && $::env(MOM_CSV_ONLY) ne ""} {
@@ -6047,7 +6355,10 @@ if {[info exists ::env(MOM_CSV_ONLY)] && $::env(MOM_CSV_ONLY) != "0" && $::env(M
 
 set csv_output_path "${mom_output_file_directory}${mom_output_file_basename}_shopdoc_tmp.csv"
 if {[catch {open $csv_output_path w} file_handle]} {
+   PB_CMD_csv_log_add "ERROR" "CSV" "Cannot open shop-doc temp CSV for writing: $csv_output_path ($file_handle)"
+   PB_CMD_csv_log_add "ERROR" "Permission" "Check output folder permissions, network drive access, and antivirus exclusions"
    MOM_output_literal ";; ERROR: Cannot open CSV temp file: $csv_output_path"
+   return
 }
 
 fconfigure $file_handle -encoding cp1252
@@ -9611,7 +9922,12 @@ catch { unset ::path_stepover_distance_list }
 proc PB_CMD_shop_end_program { } {
 #=============================================================
 global file_handle csv_output_path
-close $file_handle
+if { [info exists file_handle] } {
+   catch { close $file_handle }
+   unset file_handle
+} else {
+   PB_CMD_csv_log_add "ERROR" "CSV" "Shop-doc CSV handle was never opened; temp path: $csv_output_path"
+}
 
 # MOM_output_literal ";; OPERATION DATA EXPORTED TO:"
 # MOM_output_literal ";; $csv_output_path"

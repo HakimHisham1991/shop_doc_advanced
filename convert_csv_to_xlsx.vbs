@@ -1,9 +1,18 @@
 ' =============================================
 ' convert_csv_to_xlsx.vbs - With Data Validation
+' Emits SHOPDOC_LOG|Level|Category|Message for TCL error log parsing
 ' =============================================
 
+Sub ShopDocLog(level, category, msg)
+    WScript.Echo "SHOPDOC_LOG|" & level & "|" & category & "|" & msg
+End Sub
+
+Function NormalizePath(p)
+    NormalizePath = p
+End Function
+
 If WScript.Arguments.Count < 1 Then
-    WScript.Echo "Usage: convert_csv_to_xlsx.vbs input.csv [output.xlsx]"
+    ShopDocLog "ERROR", "Script", "Usage: convert_csv_to_xlsx.vbs input.csv [output.xlsx]"
     WScript.Quit 1
 End If
 
@@ -16,29 +25,64 @@ Else
     xlsxFile = fso.GetParentFolderName(csvFile) & "\" & fso.GetBaseName(csvFile) & ".xlsx"
 End If
 
+ShopDocLog "INFO", "Script", "convert_csv_to_xlsx.vbs started"
+ShopDocLog "INFO", "Paths", "CSV input: " & csvFile
+ShopDocLog "INFO", "Paths", "XLSX output: " & xlsxFile
+
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+If Not fso.FileExists(csvFile) Then
+    ShopDocLog "ERROR", "CSV", "Input CSV file not found: " & csvFile
+    WScript.Quit 1
+End If
+
+On Error Resume Next
+Set probeFile = fso.CreateTextFile(fso.GetParentFolderName(xlsxFile) & "\_shopdoc_vbs_probe.tmp", True)
+If Err.Number <> 0 Then
+    ShopDocLog "ERROR", "Permission", "Cannot write to output folder (permission denied, read-only path, or policy block): " & fso.GetParentFolderName(xlsxFile) & " - " & Err.Description
+    WScript.Quit 1
+End If
+probeFile.Close
+fso.DeleteFile fso.GetParentFolderName(xlsxFile) & "\_shopdoc_vbs_probe.tmp", True
+On Error GoTo 0
+
+ShopDocLog "INFO", "Permission", "Output folder is writable: " & fso.GetParentFolderName(xlsxFile)
+
+If fso.FileExists(xlsxFile) Then
+    ShopDocLog "WARN", "XLSX", "Target XLSX already exists and will be overwritten: " & xlsxFile
+End If
+
 On Error Resume Next
 
 Set objExcel = CreateObject("Excel.Application")
 If Err.Number <> 0 Then
-    WScript.Echo "ERROR: Cannot create Excel object"
+    ShopDocLog "ERROR", "Excel", "Cannot create Excel.Application COM object - " & Err.Number & " " & Err.Description
+    ShopDocLog "ERROR", "Excel", "Desktop Microsoft Excel may be missing, not licensed, or COM automation is blocked by IT policy"
+    ShopDocLog "ERROR", "Excel", "Office Online / Excel Viewer cannot be used for automated conversion"
+    ShopDocLog "ERROR", "Policy", "Ask IT to allow Excel COM automation and cscript.exe for this user"
     WScript.Quit 1
 End If
+
+ShopDocLog "INFO", "Excel", "Excel.Application created - version " & objExcel.Version & " build " & objExcel.Build
 
 objExcel.Visible = False
 objExcel.DisplayAlerts = False
 
 Set objWorkbook = objExcel.Workbooks.Open(csvFile)
 If Err.Number <> 0 Then
-    WScript.Echo "ERROR: Cannot open " & csvFile
+    ShopDocLog "ERROR", "Excel", "Cannot open CSV in Excel: " & csvFile & " - " & Err.Number & " " & Err.Description
+    ShopDocLog "ERROR", "CSV", "File may be locked by another program, corrupted, or blocked by antivirus"
     objExcel.Quit
     WScript.Quit 1
 End If
+
+ShopDocLog "INFO", "Excel", "Opened CSV workbook successfully"
 
 Set objWorksheet = objWorkbook.Worksheets(1)
 
 ' Get the last row
 lastRow = objWorksheet.UsedRange.Rows.Count
-WScript.Echo "CSV has " & lastRow & " rows"
+ShopDocLog "INFO", "CSV", "CSV has " & lastRow & " rows"
 
 ' Find column function (row 1 exact match after trim)
 Function FindColumn(ws, colName)
@@ -90,7 +134,9 @@ Sub AddValidation(ws, colNum, lastRowNum, validationString)
         rng.Validation.Add 3, 1, 1, validationString
         rng.Validation.InCellDropdown = True
         If Err.Number = 0 Then
-            WScript.Echo "  Added validation to column " & colNum
+            ShopDocLog "INFO", "Format", "Added validation to column " & colNum
+        Else
+            ShopDocLog "WARN", "Format", "Could not add validation to column " & colNum & " - " & Err.Description
         End If
         On Error GoTo 0
     End If
@@ -125,11 +171,26 @@ strategyTypeList = Join(Array( _
     "HSM" _
 ), ",")
 
+On Error Resume Next
+
 ' Format as Table
 Set objRange = objWorksheet.Range("A1").CurrentRegion
+If Err.Number <> 0 Then
+    ShopDocLog "ERROR", "Format", "Cannot read CSV table region - " & Err.Number & " " & Err.Description
+    objWorkbook.Close False
+    objExcel.Quit
+    WScript.Quit 1
+End If
+
 Set tbl = objWorksheet.ListObjects.Add(1, objRange, , 1)
-tbl.TableStyle = "TableStyleMedium9"
-tbl.ShowAutoFilter = True
+If Err.Number <> 0 Then
+    ShopDocLog "WARN", "Format", "Could not create Excel table (continuing without table style) - " & Err.Description
+    Err.Clear
+Else
+    tbl.TableStyle = "TableStyleMedium9"
+    tbl.ShowAutoFilter = True
+    ShopDocLog "INFO", "Format", "Applied Excel table formatting"
+End If
 
 ' Center align
 objRange.HorizontalAlignment = -4108
@@ -170,18 +231,21 @@ End With
 objWorkbook.SaveAs xlsxFile, 51
 
 If Err.Number <> 0 Then
-    WScript.Echo "ERROR: Cannot save to " & xlsxFile & " - " & Err.Description
+    ShopDocLog "ERROR", "XLSX", "Cannot save XLSX file: " & xlsxFile & " - " & Err.Number & " " & Err.Description
+    ShopDocLog "ERROR", "Permission", "Save failed - folder may be read-only, file locked, blocked by OneDrive/sync, or antivirus"
+    objWorkbook.Close False
+    objExcel.Quit
     WScript.Quit 1
 End If
 
+ShopDocLog "INFO", "XLSX", "Saved XLSX successfully: " & xlsxFile
 WScript.Echo "SUCCESS: " & xlsxFile
 
 objWorkbook.Close False
 objExcel.Quit
 
-' Delete CSV
-Set objFSO = CreateObject("Scripting.FileSystemObject")
-On Error Resume Next
-objFSO.DeleteFile csvFile, True
-
 Set objExcel = Nothing
+
+' CSV is deleted by the post (TCL) after error log is appended - do not delete here
+
+WScript.Quit 0
