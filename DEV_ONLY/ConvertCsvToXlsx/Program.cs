@@ -49,6 +49,8 @@ internal static class Program
                 Path.GetDirectoryName(csvFile) ?? ".",
                 Path.GetFileNameWithoutExtension(csvFile) + ".xlsx");
 
+        xlsxFile = ResolveUniqueXlsxPath(xlsxFile);
+
         Log("INFO", "Script", "convert_csv_to_xlsx.exe started (ClosedXML, no Excel COM)");
         Log("INFO", "Paths", "CSV input: " + csvFile);
         Log("INFO", "Paths", "XLSX output: " + xlsxFile);
@@ -80,11 +82,6 @@ internal static class Program
                 "Cannot write to output folder (permission denied, read-only path, or policy block): "
                 + outputDir + " - " + ex.Message);
             return 1;
-        }
-
-        if (File.Exists(xlsxFile))
-        {
-            Log("WARN", "XLSX", "Target XLSX already exists and will be overwritten: " + xlsxFile);
         }
 
         List<string[]> rows;
@@ -173,6 +170,32 @@ internal static class Program
                 "Save failed - folder may be read-only, file locked, blocked by OneDrive/sync, or antivirus");
             return 1;
         }
+    }
+
+    private static string ResolveUniqueXlsxPath(string requestedPath)
+    {
+        if (!File.Exists(requestedPath))
+            return requestedPath;
+
+        var dir = Path.GetDirectoryName(requestedPath) ?? ".";
+        var baseName = Path.GetFileNameWithoutExtension(requestedPath);
+        var ext = Path.GetExtension(requestedPath);
+        if (string.IsNullOrEmpty(ext))
+            ext = ".xlsx";
+
+        Log("INFO", "XLSX", "Target XLSX already exists (will not overwrite): " + requestedPath);
+
+        for (var i = 1; i < 10_000; i++)
+        {
+            var candidate = Path.Combine(dir, baseName + "_" + i + ext);
+            if (!File.Exists(candidate))
+            {
+                Log("INFO", "XLSX", "Using alternate output filename: " + candidate);
+                return candidate;
+            }
+        }
+
+        throw new IOException("Could not find an available XLSX filename (tried _1 through _9999).");
     }
 
     private static void ApplyModernOfficeTheme(IXLTheme theme)

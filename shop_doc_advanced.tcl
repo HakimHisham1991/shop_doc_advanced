@@ -5580,7 +5580,8 @@ proc PB_CMD_csv_parse_converter_output { output } {
       } elseif { [string match "ERROR:*" $line] } {
          PB_CMD_csv_log_add "ERROR" "Converter" [string range $line 6 end]
       } elseif { [string match "SUCCESS:*" $line] } {
-         PB_CMD_csv_log_add "INFO" "Converter" [string range $line 8 end]
+         set ::shop_doc_xlsx_output_path [string trim [string range $line 8 end]]
+         PB_CMD_csv_log_add "INFO" "Converter" $::shop_doc_xlsx_output_path
       } else {
          PB_CMD_csv_log_add "INFO" "Converter" $line
       }
@@ -5636,7 +5637,7 @@ proc PB_CMD_csv_run_preflight { csv_file xlsx_file converter_exe } {
    }
 
    if { [file exists $xlsx_file] } {
-      PB_CMD_csv_log_add "WARN" "XLSX" "Target XLSX already exists and may be locked: $xlsx_file"
+      PB_CMD_csv_log_add "INFO" "XLSX" "Target XLSX already exists — converter will save as [file rootname [file tail $xlsx_file]]_1.xlsx (or next free suffix)"
    }
 }
 
@@ -5741,6 +5742,8 @@ proc PB_CMD_convert_csv_to_xlsx { } {
 
    PB_CMD_csv_log_add "INFO" "Runtime" "Launching converter: $converter_exe"
 
+   catch { unset ::shop_doc_xlsx_output_path }
+
    if { [catch {
       exec [file nativename $converter_exe] [file nativename $csv_file] [file nativename $xlsx_file]
    } exec_out] } {
@@ -5748,6 +5751,10 @@ proc PB_CMD_convert_csv_to_xlsx { } {
       PB_CMD_csv_log_add "ERROR" "Runtime" "Converter launch failed: $exec_out"
    }
    PB_CMD_csv_parse_converter_output $exec_out
+
+   if { [info exists ::shop_doc_xlsx_output_path] && [string length $::shop_doc_xlsx_output_path] > 0 } {
+      set xlsx_file $::shop_doc_xlsx_output_path
+   }
 
    if { [file exists $xlsx_file] } {
       PB_CMD_csv_log_add "INFO" "XLSX" "Conversion succeeded: [file tail $xlsx_file] ([file size $xlsx_file] bytes)"
