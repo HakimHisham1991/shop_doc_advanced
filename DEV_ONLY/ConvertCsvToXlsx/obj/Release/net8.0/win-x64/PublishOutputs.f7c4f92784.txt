@@ -1,0 +1,2 @@
+C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\ConvertCsvToXlsx\bin\publish\convert_csv_to_xlsx.pdb
+C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\ConvertCsvToXlsx\bin\publish\convert_csv_to_xlsx.exe

@@ -206,7 +206,7 @@ proc PB_CMD___log_revisions { } {
 	# Append detailed diagnostics at bottom of CSV (3 blank rows + ERROR LOG table)
 	#   0 = off   1 = on
 	set mom_sys_csv_error_log_enabled   1
-	# Folder containing convert_csv_to_xlsx.vbs — same directory as this post (.tcl)
+	# Folder containing convert_csv_to_xlsx.exe — same directory as this post (.tcl)
 	if { ![info exists mom_sys_this_post_dir] } {
 		set mom_sys_this_post_dir [file dirname [info script]]
 	}
@@ -5521,39 +5521,23 @@ proc PB_CMD_csv_safe_env { name } {
 
 
 #=============================================================
-proc PB_CMD_csv_find_cscript { } {
+proc PB_CMD_csv_find_converter_exe { } {
 #=============================================================
-   if { [string compare $::tcl_platform(platform) "windows"] != 0 } {
-      return ""
+   global mom_sys_converter_dir mom_sys_this_post_dir
+
+   if { ![info exists mom_sys_this_post_dir] } {
+      set mom_sys_this_post_dir [file dirname [info script]]
+   }
+   if { ![info exists mom_sys_converter_dir] || [string length $mom_sys_converter_dir] == 0 } {
+      set mom_sys_converter_dir $mom_sys_this_post_dir
    }
 
-   set where_out ""
-   if { ![catch {exec where cscript} where_out] } {
-      set where_out [string trim $where_out]
-      if { [string length $where_out] > 0 } {
-         return [string trim [lindex [split $where_out "\n"] 0]]
-      }
+   set exe_path [file join $mom_sys_converter_dir "convert_csv_to_xlsx.exe"]
+   if { [file exists $exe_path] } {
+      return $exe_path
    }
-
-   set cscript_sys32 [file join $::env(WINDIR) System32 cscript.exe]
-   set cscript_syswow [file join $::env(WINDIR) SysWOW64 cscript.exe]
-
-   if { [file exists $cscript_sys32] } { return $cscript_sys32 }
-   if { [file exists $cscript_syswow] } { return $cscript_syswow }
 
    return ""
-}
-
-
-#=============================================================
-proc PB_CMD_csv_check_excel_registered { } {
-#=============================================================
-   if { [string compare $::tcl_platform(platform) "windows"] != 0 } { return 0 }
-
-   set reg_out ""
-   if { ![catch {exec reg query HKEY_CLASSES_ROOT\\Excel.Application /ve} reg_out] } { return 1 }
-   if { ![catch {exec reg query HKEY_CLASSES_ROOT\\Excel.Application.16 /ve} reg_out] } { return 1 }
-   return 0
 }
 
 
@@ -5605,7 +5589,7 @@ proc PB_CMD_csv_parse_converter_output { output } {
 
 
 #=============================================================
-proc PB_CMD_csv_run_preflight { csv_file xlsx_file vbs_path } {
+proc PB_CMD_csv_run_preflight { csv_file xlsx_file converter_exe } {
 #=============================================================
    global mom_sys_converter_dir mom_sys_this_post_dir mom_sys_csv_to_xlsx_enabled
 
@@ -5626,7 +5610,7 @@ proc PB_CMD_csv_run_preflight { csv_file xlsx_file vbs_path } {
 
    PB_CMD_csv_log_add "INFO" "Paths" "CSV output: $csv_file"
    PB_CMD_csv_log_add "INFO" "Paths" "XLSX target: $xlsx_file"
-   PB_CMD_csv_log_add "INFO" "Paths" "VBS script: $vbs_path"
+   PB_CMD_csv_log_add "INFO" "Paths" "Converter EXE: $converter_exe"
 
    if { ![file exists $csv_file] } {
       PB_CMD_csv_log_add "ERROR" "CSV" "Output CSV file not found: $csv_file"
@@ -5636,11 +5620,11 @@ proc PB_CMD_csv_run_preflight { csv_file xlsx_file vbs_path } {
       PB_CMD_csv_log_add "INFO" "CSV" "Output CSV exists ([file size $csv_file] bytes)"
    }
 
-   if { ![file exists $vbs_path] } {
-      PB_CMD_csv_log_add "ERROR" "Deploy" "convert_csv_to_xlsx.vbs not found next to post. Expected: $vbs_path"
-      PB_CMD_csv_log_add "ERROR" "Deploy" "Copy convert_csv_to_xlsx.vbs into the same folder as shop_doc_advanced.tcl"
+   if { ![file exists $converter_exe] } {
+      PB_CMD_csv_log_add "ERROR" "Deploy" "convert_csv_to_xlsx.exe not found next to post. Expected: $converter_exe"
+      PB_CMD_csv_log_add "ERROR" "Deploy" "Run DEV_ONLY\\build_converter.ps1 on a dev PC, then copy convert_csv_to_xlsx.exe into the post folder"
    } else {
-      PB_CMD_csv_log_add "INFO" "Deploy" "convert_csv_to_xlsx.vbs found ([file size $vbs_path] bytes)"
+      PB_CMD_csv_log_add "INFO" "Deploy" "convert_csv_to_xlsx.exe found ([file size $converter_exe] bytes, ClosedXML — no Excel COM)"
    }
 
    set csv_dir [file dirname $csv_file]
@@ -5649,22 +5633,6 @@ proc PB_CMD_csv_run_preflight { csv_file xlsx_file vbs_path } {
       PB_CMD_csv_log_add "ERROR" "Permission" $dir_err
    } else {
       PB_CMD_csv_log_add "INFO" "Permission" "Output directory is writable: $csv_dir"
-   }
-
-   set cscript [PB_CMD_csv_find_cscript]
-   if { [string length $cscript] == 0 } {
-      PB_CMD_csv_log_add "ERROR" "Policy" "cscript.exe not found. Windows Script Host may be disabled by IT policy (AppLocker / GPO)."
-   } else {
-      PB_CMD_csv_log_add "INFO" "Runtime" "cscript.exe: $cscript"
-   }
-
-   if { [string compare $::tcl_platform(platform) "windows"] == 0 } {
-      if { [PB_CMD_csv_check_excel_registered] } {
-         PB_CMD_csv_log_add "INFO" "Excel" "Excel.Application COM class is registered (Excel likely installed)"
-      } else {
-         PB_CMD_csv_log_add "ERROR" "Excel" "Excel.Application not registered. Desktop Microsoft Excel may be missing, not activated, or COM registration is broken."
-         PB_CMD_csv_log_add "ERROR" "Excel" "Office Online / Excel Viewer cannot run COM automation required for XLSX conversion."
-      }
    }
 
    if { [file exists $xlsx_file] } {
@@ -5740,9 +5708,9 @@ proc PB_CMD_convert_csv_to_xlsx { } {
 
    set csv_file  $ptp_file_name
    set xlsx_file [file rootname $ptp_file_name].xlsx
-   set vbs_path  [file join $mom_sys_converter_dir "convert_csv_to_xlsx.vbs"]
+   set converter_exe [PB_CMD_csv_find_converter_exe]
 
-   PB_CMD_csv_run_preflight $csv_file $xlsx_file $vbs_path
+   PB_CMD_csv_run_preflight $csv_file $xlsx_file $converter_exe
 
    if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } {
       PB_CMD_csv_log_flush $csv_file
@@ -5755,7 +5723,7 @@ proc PB_CMD_convert_csv_to_xlsx { } {
       return
    }
 
-   if { ![file exists $vbs_path] } {
+   if { [string length $converter_exe] == 0 || ![file exists $converter_exe] } {
       PB_CMD_csv_log_flush $csv_file
       return
    }
@@ -5768,42 +5736,17 @@ proc PB_CMD_convert_csv_to_xlsx { } {
       return
    }
 
-   set cscript [PB_CMD_csv_find_cscript]
-   if { [string length $cscript] == 0 } {
-      PB_CMD_csv_log_flush $csv_file
-      return
-   }
-
-   set tmp_bat [file join $csv_dir "_launch_convert_shopdoc.bat"]
    set exec_err ""
    set exec_out ""
 
-   set bat_err ""
+   PB_CMD_csv_log_add "INFO" "Runtime" "Launching converter: $converter_exe"
+
    if { [catch {
-      set fh [open $tmp_bat w]
-      puts $fh "@echo off"
-      puts $fh "\"[file nativename $cscript]\" //nologo \"[file nativename $vbs_path]\" \"[file nativename $csv_file]\" \"[file nativename $xlsx_file]\" 2>&1"
-      close $fh
-   } bat_err] } {
-      PB_CMD_csv_log_add "ERROR" "Permission" "Could not write launcher batch file: $tmp_bat ($bat_err)"
-      PB_CMD_csv_log_flush $csv_file
-      return
-   }
-
-   if { ![file exists $tmp_bat] } {
-      PB_CMD_csv_log_add "ERROR" "Permission" "Launcher batch file was not created: $tmp_bat"
-      PB_CMD_csv_log_flush $csv_file
-      return
-   }
-
-   PB_CMD_csv_log_add "INFO" "Runtime" "Launching converter via: $tmp_bat"
-
-   if { [catch {exec cmd /c [file nativename $tmp_bat]} exec_out] } {
+      exec [file nativename $converter_exe] [file nativename $csv_file] [file nativename $xlsx_file]
+   } exec_out] } {
       set exec_err $exec_out
-      PB_CMD_csv_log_add "ERROR" "Runtime" "cscript launch failed: $exec_out"
+      PB_CMD_csv_log_add "ERROR" "Runtime" "Converter launch failed: $exec_out"
    }
-
-   catch { file delete -force $tmp_bat }
    PB_CMD_csv_parse_converter_output $exec_out
 
    if { [file exists $xlsx_file] } {
@@ -6371,7 +6314,7 @@ puts $file_handle [join [list \
     {A/C Type} \
     {Part Number} \
     {Material Type} \
-    "\"Tool Ref.\nNumber\"" \
+    {Tool Ref. Number} \
     {Cutter Description} \
     {Cutter Type} \
     {Tool Type (Carbide/HSS/PCD)} \
