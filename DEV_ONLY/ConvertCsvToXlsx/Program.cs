@@ -21,7 +21,7 @@ internal static class Program
     private static readonly string[] ToolTypeList =
         ["Carbide", "HSS", "PCD"];
 
-    private static readonly string[] StrategyTypeList =
+    private static readonly string[] MachiningTypeList =
         ["Conventional", "HSM"];
 
     public static int Main(string[] args)
@@ -146,13 +146,13 @@ internal static class Program
             AddListValidation(worksheet, FindFinishTypeColumn(worksheet), lastRow, SurfaceTypeList);
             AddListValidation(worksheet, FindColumn(worksheet, "Cutter Type"), lastRow, MillingTypeList);
             AddListValidation(worksheet, FindColumn(worksheet, "Tool Type (Carbide/HSS/PCD)"), lastRow, ToolTypeList);
-            AddListValidation(worksheet, FindColumn(worksheet, "Strategy Type"), lastRow, StrategyTypeList);
+            AddListValidation(worksheet, FindColumn(worksheet, "Machining Type (Conventional/HSM)"), lastRow, MachiningTypeList);
 
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Material Type"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Cutter Type"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Tool Type (Carbide/HSS/PCD)"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindFinishTypeColumn(worksheet), lastRow);
-            AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Strategy Type"), lastRow);
+            AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Machining Type (Conventional/HSM)"), lastRow);
 
             worksheet.SheetView.FreezeRows(1);
             worksheet.SheetView.FreezeColumns(1);

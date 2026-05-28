@@ -13,7 +13,7 @@ Built with **Post Builder** for a **5-axis dual-table** mill. Primary output is 
 | **Shop-doc CSV** | One row per tool path with fixed shop columns plus NX `mom_*` cutting parameters |
 | **XLSX conversion** | Self-contained `convert_csv_to_xlsx.exe` (ClosedXML 0.105) — **no Microsoft Excel**, no COM, no `cscript` |
 | **Table styling** | Dark Teal, **Table Style Medium 9**, autofilter, frozen header row/column |
-| **Data validation** | Dropdown lists on Material Type, Cutter Type, Tool Type, Finish Type, Strategy Type |
+| **Data validation** | Dropdown lists on Material Type, Cutter Type, Tool Type, Finish Type, Machining Type (Conventional/HSM) |
 | **Conditional formatting** | Blank cells in those columns → yellow fill + red border |
 | **Safe overwrite** | If `PartName.xlsx` exists, saves as `PartName_1.xlsx`, then `_2`, … (never overwrites) |
 | **Error log** | Optional diagnostics appended to output (see below) |
@@ -151,7 +151,7 @@ Defined in `DEV_ONLY/ConvertCsvToXlsx/Program.cs` (rebuild exe after edits):
 | Cutter Type | End Milling, Face Milling, Drilling, Reaming, Turning |
 | Tool Type (Carbide/HSS/PCD) | Carbide, HSS, PCD |
 | Finish Type | Finish, Controlled Roughing, Free Roughing |
-| Strategy Type | Conventional, HSM |
+| Machining Type (Conventional/HSM) | Conventional, HSM |
 
 - Dropdown on each data row; blanks allowed.
 - **Stop** alert if user types a value not in the list.

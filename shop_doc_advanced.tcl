@@ -6325,6 +6325,7 @@ puts $file_handle [join [list \
     {Cutter Description} \
     {Cutter Type} \
     {Tool Type (Carbide/HSS/PCD)} \
+    {Machining Type (Conventional/HSM)} \
     "\"Finish Type \n(Finish / Controlled Roughing / Free Roughing)\"" \
     {Tool Diameter (mm)} \
     {Number of Flutes (teeth)} \
@@ -6337,7 +6338,6 @@ puts $file_handle [join [list \
     {Justification} \
     {Ramp Angle (Deg)} \
     {Approach / Plunge Feed (mm/min)} \
-    {Strategy Type} \
     {Operation Name} \
     mom_template_type \
     mom_template_subtype \
@@ -9787,6 +9787,7 @@ set row_fields [list \
     "" \
     "" \
     "" \
+    "" \
     [pb__round_param_4dec $tool_dia] \
     [pb__mom_var_or_na mom_tool_flutes_number] \
     [pb__round_param_4dec $feed] \
@@ -9795,7 +9796,6 @@ set row_fields [list \
     $final_ae \
     [pb__mom_var_or_na mom_feed_per_tooth] \
     [pb__mom_var_or_na mom_surface_speed] \
-    "" \
     "" \
     "" \
     "" \
