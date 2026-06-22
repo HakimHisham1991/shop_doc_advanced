@@ -9014,6 +9014,13 @@ catch {
                     set final_ae [pb__round_param_4dec $mom_stepover_distance]
                 }
             }
+        } elseif {$sot == 4} {
+            if {[info exists mom_stepover_percent] && [info exists mom_tool_diameter] && [info exists mom_tool_corner1_radius]} {
+                set denom [expr {double($mom_tool_diameter) - 2.0 * $mom_tool_corner1_radius}]
+                if {$denom != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($mom_stepover_percent) / 100.0 * $denom}]]
+                }
+            }
         }
     } elseif {$st eq "FACE_MILL_ZIGZAG"} {
         if {$sot == 1} {
@@ -9026,6 +9033,15 @@ catch {
                     set final_ae [pb__round_param_4dec $mom_stepover_distance]
                 }
             }
+        } elseif {$sot == 4} {
+            if {[info exists mom_stepover_percent] && [info exists mom_tool_diameter] && [info exists mom_tool_corner1_radius]} {
+                set denom [expr {double($mom_tool_diameter) - 2.0 * $mom_tool_corner1_radius}]
+                if {$denom != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($mom_stepover_percent) / 100.0 * $denom}]]
+                }
+            }
+        } elseif {$sot == 5} {
+            set final_ae "NO DATA"
         }
     } elseif {$st eq "2D_WALL_MILL"} {
         if {[info exists mom_tool_diameter]} {
