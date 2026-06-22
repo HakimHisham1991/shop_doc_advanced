@@ -9259,8 +9259,22 @@ catch {
             }
         }
     } elseif {$st eq "GROOVE_MILLING"} {
-        if {[info exists mom_stepover_distance]} {
-            set final_ae [pb__round_param_4dec $mom_stepover_distance]
+        if {$sot == 1} {
+            if {$sds_defined && $sds == 4} {
+                if {[info exists mom_stepover_distance] && [info exists mom_tool_diameter] && $mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($mom_stepover_distance) / 100.0 * $mom_tool_diameter}]]
+                }
+            } elseif {!$sds_defined} {
+                if {[info exists mom_stepover_distance]} {
+                    set final_ae [pb__round_param_4dec $mom_stepover_distance]
+                }
+            }
+        } elseif {$sot == 5} {
+            if {[string is double -strict $step_points_2]} {
+                set final_ae "[expr {int(round($step_points_2))}] Passes"
+            } else {
+                set final_ae "$step_points_2 Passes"
+            }
         }
     } elseif {$st eq "PLANAR_DEBURRING"} {
         set final_ae "NO DATA"
