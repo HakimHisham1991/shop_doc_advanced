@@ -9311,7 +9311,7 @@ array set ap_mill_planar {
     WALL_FLOOR_PROFILING depth_per_cut
     PLANAR_PROFILING     z_depth_offset
     PLANAR_MILL          cut_level_max
-    GROOVE_MILLING       cut_level_dist
+    GROOVE_MILLING       ax_stepover_dist
     PLANAR_DEBURRING     no_data
     MILL_CONTROL         no_data
     FLOOR_FACING         depth_per_cut
@@ -9326,11 +9326,12 @@ catch {
         }
         if {[info exists ap_mill_planar($st)]} {
             switch -- $ap_mill_planar($st) {
-                cut_level_dist  { set final_ap [pb__ae_ap_var mom_cut_level_distance] }
-                depth_per_cut   { set final_ap [pb__ae_ap_var mom_depth_per_cut] }
-                z_depth_offset  { set final_ap [pb__ae_ap_var mom_z_depth_offset] }
-                cut_level_max   { set final_ap [pb__ae_ap_var mom_cut_level_max_depth] }
-                no_data         { set final_ap "NO DATA" }
+                cut_level_dist   { set final_ap [pb__ae_ap_var mom_cut_level_distance] }
+                depth_per_cut    { set final_ap [pb__ae_ap_var mom_depth_per_cut] }
+                z_depth_offset   { set final_ap [pb__ae_ap_var mom_z_depth_offset] }
+                cut_level_max    { set final_ap [pb__ae_ap_var mom_cut_level_max_depth] }
+                ax_stepover_dist { set final_ap [pb__ae_ap_var mom_axial_stepover_distance] }
+                no_data          { set final_ap "NO DATA" }
             }
         }
     }
