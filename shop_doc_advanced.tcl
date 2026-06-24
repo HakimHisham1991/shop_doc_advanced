@@ -494,6 +494,10 @@ proc MOM_start_of_program { } {
 
     catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }
     trace add variable ::mom_stepover_distance write pb__trace_stepover
+    catch { trace remove variable ::mom_stepover_type write pb__trace_stepover_type }
+    trace add variable ::mom_stepover_type write pb__trace_stepover_type
+    catch { trace remove variable ::mom_stepover_percent write pb__trace_stepover_percent }
+    trace add variable ::mom_stepover_percent write pb__trace_stepover_percent
 
 
 
@@ -6319,6 +6323,7 @@ set csv_row_counter 0
 puts $file_handle [join [list \
     No. \
     {A/C Type} \
+    {Process Specs} \
     {Part Number} \
     {Material Type} \
     {Tool Ref. Number} \
@@ -6357,8 +6362,12 @@ puts $file_handle [join [list \
     path_stepover_3 \
     mom_stepover_distance_source \
     mom_stepover_percent \
+    mom_stepover_percent_1 \
+    mom_stepover_percent_2 \
+    mom_stepover_percent_3 \
     mom_stepover_scallop \
     mom_stepover_type \
+    mom_stepover_type_early \
     {mom_stepover_variable_max_min[0]} \
     {mom_stepover_variable_max_min[1]} \
     {mom_step_points[2]} \
@@ -6366,6 +6375,7 @@ puts $file_handle [join [list \
     mom_maximal_stepover_distance \
     {max(mom_stepover_variable_tool_dependent_values)} \
     mom_deburring_edge_depth \
+    mom_region_cut_method \
     {mom_stepover_variable_tool_dependent_values[0]} \
     {mom_stepover_variable_tool_dependent_values_source[0]} \
     {mom_stepover_variable_tool_dependent_values[1]} \
@@ -9111,6 +9121,185 @@ proc pb__ae_std_sot_1234 { sot sds_defined sds } {
 }
 
 
+# Returns ae for CAVITY_MILL (mill_contour).
+proc pb__ae_cavity_mill { sot sds_defined sds stepover_var_1 } {
+    set final_ae "N/A"
+    set dist_defined [expr {[info exists ::mom_stepover_distance] && $::mom_stepover_distance ne ""}]
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    switch -- $sot {
+        1 {
+            if {$dist_defined} {
+                if {!$src_defined} {
+                    set final_ae [pb__round_param_4dec $::mom_stepover_distance]
+                } elseif {[info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+                }
+            }
+        }
+        2 {
+            set final_ae "NO DATA"
+        }
+        3 {
+            set rcm ""
+            if {[info exists ::mom_region_cut_method] && $::mom_region_cut_method ne ""} {
+                set rcm $::mom_region_cut_method
+            }
+            if {$rcm in {7 4 5}} {
+                set _max_ae ""
+                for {set _i 0} {$_i <= 5} {incr _i} {
+                    if {![info exists ::mom_stepover_variable_tool_dependent_values_source($_i)] || $::mom_stepover_variable_tool_dependent_values_source($_i) eq ""} {
+                        continue
+                    }
+                    if {![info exists ::mom_stepover_variable_tool_dependent_values($_i)] || $::mom_stepover_variable_tool_dependent_values($_i) eq ""} {
+                        continue
+                    }
+                    set _src $::mom_stepover_variable_tool_dependent_values_source($_i)
+                    set _val $::mom_stepover_variable_tool_dependent_values($_i)
+                    set _pair_ae ""
+                    if {$_src == 0} {
+                        if {[string is double -strict $_val]} {
+                            set _pair_ae [expr {double($_val)}]
+                        }
+                    } elseif {$_src == 4} {
+                        if {[string is double -strict $_val] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                            set _pair_ae [expr {double($_val) / 100.0 * $::mom_tool_diameter}]
+                        }
+                    }
+                    if {$_pair_ae ne "" && ($_max_ae eq "" || $_pair_ae > $_max_ae)} {
+                        set _max_ae $_pair_ae
+                    }
+                }
+                if {$_max_ae ne ""} {
+                    set final_ae [pb__round_param_4dec $_max_ae]
+                }
+            } elseif {$rcm in {1 2 3}} {
+                if {$stepover_var_1 ne "N/A"} { set final_ae $stepover_var_1 }
+            }
+        }
+        4 {
+            if {[info exists ::mom_stepover_percent] && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
+                set denom [expr {double($::mom_tool_diameter) - 2.0 * $::mom_tool_corner1_radius}]
+                if {$denom != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_percent) / 100.0 * $denom}]]
+                }
+            }
+        }
+    }
+    return $final_ae
+}
+
+
+
+# Returns ae for PLUNGE_MILLING (mill_contour).
+proc pb__ae_plunge_mill { sot sds_defined sds } {
+    set final_ae "N/A"
+    set dist_defined [expr {[info exists ::mom_stepover_distance] && $::mom_stepover_distance ne ""}]
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    switch -- $sot {
+        1 {
+            if {$dist_defined} {
+                if {!$src_defined} {
+                    set final_ae [pb__round_param_4dec $::mom_stepover_distance]
+                } elseif {[info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+                }
+            }
+        }
+        4 {
+            if {[info exists ::mom_stepover_percent] && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
+                set denom [expr {double($::mom_tool_diameter) - 2.0 * $::mom_tool_corner1_radius}]
+                if {$denom != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_percent) / 100.0 * $denom}]]
+                }
+            }
+        }
+    }
+    return $final_ae
+}
+
+
+
+
+# Returns ae for ADAPTIVE_MILLING (mill_contour).
+proc pb__ae_adaptive_milling { sot sds_defined sds } {
+    set final_ae "N/A"
+    set dist_defined [expr {[info exists ::mom_stepover_distance] && $::mom_stepover_distance ne ""}]
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    switch -- $sot {
+        1 {
+            if {$dist_defined} {
+                if {!$src_defined} {
+                    set final_ae [pb__round_param_4dec $::mom_stepover_distance]
+                } elseif {$sds == 4 && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+                }
+            }
+        }
+    }
+    return $final_ae
+}
+
+
+# Returns ae for 3D_ADAPTIVE_ROUGHING (mill_contour).
+proc pb__ae_3d_adaptive_roughing { sot sot_early sds_defined sds path_stepover_2 } {
+    set final_ae "N/A"
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    set path_defined [expr {$path_stepover_2 ne "N/A" && $path_stepover_2 ne ""}]
+    set path_numeric [expr {$path_defined && [string is double -strict $path_stepover_2]}]
+    switch -- $sot {
+        1 {
+            if {$path_defined} {
+                if {!$src_defined} {
+                    if {$path_numeric} {
+                        set final_ae [pb__round_param_4dec $path_stepover_2]
+                    } else {
+                        set final_ae $path_stepover_2
+                    }
+                } elseif {$sds == 4 && $path_numeric && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($path_stepover_2) / 100.0 * $::mom_tool_diameter}]]
+                }
+            }
+        }
+    }
+    if {$sot_early == 4 && $sds == 4 && $path_numeric && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
+        set denom [expr {double($::mom_tool_diameter) - 2.0 * $::mom_tool_corner1_radius}]
+        if {$denom != 0} {
+            set final_ae [pb__round_param_4dec [expr {double($path_stepover_2) / 100.0 * $denom}]]
+        }
+    }
+    return $final_ae
+}
+
+
+# Returns ae for QUICK_ROUGHING (mill_contour).
+proc pb__ae_quick_roughing { sot sot_early sds_defined sds stepover_percent_2 path_stepover_2 } {
+    set final_ae "N/A"
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    set pct_defined [expr {$stepover_percent_2 ne "N/A" && $stepover_percent_2 ne ""}]
+    set pct_numeric [expr {$pct_defined && [string is double -strict $stepover_percent_2]}]
+    set path_defined [expr {$path_stepover_2 ne "N/A" && $path_stepover_2 ne ""}]
+    set path_numeric [expr {$path_defined && [string is double -strict $path_stepover_2]}]
+
+    if {$sot_early == 4 && $pct_numeric && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
+        set denom [expr {double($::mom_tool_diameter) - 2.0 * $::mom_tool_corner1_radius}]
+        if {$denom != 0} {
+            set final_ae [pb__round_param_4dec [expr {double($stepover_percent_2) / 100.0 * $denom}]]
+        }
+    } elseif {$sot_early == 1 && $sot == 1 && $path_defined} {
+        if {!$src_defined} {
+            if {$path_numeric} {
+                set final_ae [pb__round_param_4dec $path_stepover_2]
+            } else {
+                set final_ae $path_stepover_2
+            }
+        } elseif {$sds == 4 && $path_numeric && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+            set final_ae [pb__round_param_4dec [expr {double($path_stepover_2) / 100.0 * $::mom_tool_diameter}]]
+        }
+    }
+    return $final_ae
+}
+
+
 
 
 # Returns ae = tool_diameter (used by several subtypes).
@@ -9163,7 +9352,7 @@ global mom_part_name
 global mom_z_depth_offset mom_stepover_distance mom_stepover_distance_source
 global mom_stepover_percent mom_stepover_scallop mom_stepover_type
 global mom_stepover_variable_max_min mom_stepover_variable_tool_dependent_values mom_stepover_variable_tool_dependent_values_source mom_step_points
-global mom_depth_per_cut mom_cut_level_max_depth mom_cut_level_distance mom_deburring_edge_depth
+global mom_depth_per_cut mom_cut_level_max_depth mom_cut_level_distance mom_deburring_edge_depth mom_region_cut_method
 global mom_global_cut_depth mom_step_ahead_distance mom_wall_increment
 global mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
 global mom_maximal_stepover_distance mom_axial_stepover_distance
@@ -9297,6 +9486,26 @@ if {[info exists ::path_stepover_distance_list] && [llength $::path_stepover_dis
     }
 }
 
+# --- path_stepover_type_list: first early mom_stepover_type write ---
+set stepover_type_early "N/A"
+if {[info exists ::path_stepover_type_list] && [llength $::path_stepover_type_list] > 0} {
+    set stepover_type_early [lindex $::path_stepover_type_list 0]
+}
+
+# --- path_stepover_percent_list: first 3 mom_stepover_percent writes ---
+set stepover_percent_1 "N/A"
+set stepover_percent_2 "N/A"
+set stepover_percent_3 "N/A"
+if {[info exists ::path_stepover_percent_list] && [llength $::path_stepover_percent_list] > 0} {
+    set stepover_percent_1 [lindex $::path_stepover_percent_list 0]
+    if {[llength $::path_stepover_percent_list] >= 2} {
+        set stepover_percent_2 [lindex $::path_stepover_percent_list 1]
+    }
+    if {[llength $::path_stepover_percent_list] >= 3} {
+        set stepover_percent_3 [lindex $::path_stepover_percent_list 2]
+    }
+}
+
 set final_ae "N/A"
 set final_ap "N/A"
 
@@ -9304,9 +9513,11 @@ set final_ap "N/A"
 # Shared stepover context (used by all Ae dispatch handlers)
 # ============================================================
 set sot -999
+set sot_early -999
 set sds -999
 set sds_defined 0
 if {[info exists mom_stepover_type] && $mom_stepover_type ne ""}          { set sot $mom_stepover_type }
+if {$stepover_type_early ne "N/A"}                                       { set sot_early $stepover_type_early }
 set sds_defined [info exists mom_stepover_distance_source]
 if {$sds_defined && $mom_stepover_distance_source ne ""}                   { set sds $mom_stepover_distance_source }
 
@@ -9385,14 +9596,18 @@ catch {
 #   no_data        -> ae = "NO DATA"
 #   deburring      -> ae = mom_deburring_edge_depth
 #   max_scallop    -> ae = max(scallop, horiz_limit, vert_limit) — non-strict double check
+#   cavity_mill    -> call pb__ae_cavity_mill (CAVITY_MILL stepover logic)
+#   adaptive_mill  -> call pb__ae_adaptive_milling (ADAPTIVE_MILLING stepover logic)
+#   adaptive_3d    -> call pb__ae_3d_adaptive_roughing (3D_ADAPTIVE_ROUGHING stepover logic)
+#   quick_rough    -> call pb__ae_quick_roughing (QUICK_ROUGHING stepover logic)
 
 array set ae_mill_contour {
-    CAVITY_MILL                    stepover_dist
-    ADAPTIVE_MILLING               stepover_dist
-    3D_ADAPTIVE_ROUGHING           path_step_2
-    PLUNGE_MILLING                 stepover_dist
-    QUICK_ROUGHING                 path_step_2
-    REST_MILLING                   stepover_dist
+    CAVITY_MILL                    cavity_mill
+    ADAPTIVE_MILLING               adaptive_mill
+    3D_ADAPTIVE_ROUGHING           adaptive_3d
+    PLUNGE_MILLING                 plunge_mill
+    QUICK_ROUGHING                 quick_rough
+    REST_MILLING                   cavity_mill
     ZLEVEL_PROFILE_STEEP           tool_dia
     ZLEVEL_UNDERCUT                tool_dia
     FIXED_AXIS_GUIDING_CURVES      stepover_dist
@@ -9426,6 +9641,11 @@ catch {
                 no_data       { set final_ae "NO DATA" }
                 deburring     { set final_ae [pb__ae_ap_var mom_deburring_edge_depth] }
                 max_scallop   { set final_ae [pb__ae_ap_max_scallop_limits 0] }
+                cavity_mill   { set final_ae [pb__ae_cavity_mill $sot $sds_defined $sds $stepover_var_1] }
+                plunge_mill   { set final_ae [pb__ae_plunge_mill $sot $sds_defined $sds] }
+                adaptive_mill { set final_ae [pb__ae_adaptive_milling $sot $sds_defined $sds] }
+                adaptive_3d   { set final_ae [pb__ae_3d_adaptive_roughing $sot $sot_early $sds_defined $sds $path_stepover_2] }
+                quick_rough   { set final_ae [pb__ae_quick_roughing $sot $sot_early $sds_defined $sds $stepover_percent_2 $path_stepover_2] }
             }
         }
     }
@@ -9754,6 +9974,7 @@ if {[info exists mom_part_name] && [string trim $mom_part_name] ne ""} {
 set row_fields [list \
     $csv_row_counter \
     "" \
+    "" \
     $csv_part_number \
     "" \
     $tool_ref_number \
@@ -9792,8 +10013,12 @@ set row_fields [list \
     $path_stepover_3 \
     [pb__mom_var_or_na mom_stepover_distance_source] \
     [pb__mom_var_or_na mom_stepover_percent] \
+    $stepover_percent_1 \
+    $stepover_percent_2 \
+    $stepover_percent_3 \
     [pb__mom_var_or_na mom_stepover_scallop] \
     [pb__mom_var_or_na mom_stepover_type] \
+    $stepover_type_early \
     $stepover_var_0 \
     $stepover_var_1 \
     $step_points_2 \
@@ -9801,6 +10026,7 @@ set row_fields [list \
     [pb__mom_var_or_na mom_maximal_stepover_distance] \
     $max_stepover_var_tool_dep \
     [pb__mom_var_or_na mom_deburring_edge_depth] \
+    [pb__mom_var_or_na mom_region_cut_method] \
     [lindex $stepover_var_tool_dep_cols 0] \
     [lindex $stepover_var_tool_dep_src_cols 0] \
     [lindex $stepover_var_tool_dep_cols 1] \
@@ -9840,7 +10066,7 @@ foreach v {
     mom_stock_part mom_stock_floor mom_wall_stock mom_z_depth_offset
     mom_stepover_distance mom_stepover_distance_source mom_stepover_percent
     mom_stepover_scallop mom_stepover_type mom_depth_per_cut mom_cut_level_max_depth
-    mom_deburring_edge_depth mom_global_cut_depth mom_step_ahead_distance
+    mom_deburring_edge_depth mom_region_cut_method mom_global_cut_depth mom_step_ahead_distance
     mom_wall_increment mom_multi_depth_cut_increment mom_horizonal_limit
     mom_vertical_limit mom_maximal_stepover_distance mom_axial_stepover_distance
     mom_cycle_step1
@@ -9851,8 +10077,14 @@ foreach v {
 # Re-arm the trace - unsetting mom_stepover_distance above removes it
 catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }
 trace add variable ::mom_stepover_distance write pb__trace_stepover
+catch { trace remove variable ::mom_stepover_type write pb__trace_stepover_type }
+trace add variable ::mom_stepover_type write pb__trace_stepover_type
+catch { trace remove variable ::mom_stepover_percent write pb__trace_stepover_percent }
+trace add variable ::mom_stepover_percent write pb__trace_stepover_percent
 
 catch { unset ::path_stepover_distance_list }
+catch { unset ::path_stepover_type_list }
+catch { unset ::path_stepover_percent_list }
 }
 
 
@@ -16557,6 +16789,37 @@ proc pb__trace_stepover { name1 name2 op } {
     set last [lindex $::path_stepover_distance_list end]
     if {$last ne $rounded} {
         lappend ::path_stepover_distance_list $rounded
+    }
+}
+
+
+#=============================================================
+proc pb__trace_stepover_type { name1 name2 op } {
+#=============================================================
+# Tcl variable trace callback — fires every time mom_stepover_type
+# is written (including during NX parameter loading, before motion events).
+    upvar #0 mom_stepover_type val
+    if {![info exists val] || $val eq ""} { return }
+    if {![info exists ::path_stepover_type_list]} { set ::path_stepover_type_list {} }
+    set last [lindex $::path_stepover_type_list end]
+    if {$last ne $val} {
+        lappend ::path_stepover_type_list $val
+    }
+}
+
+
+#=============================================================
+proc pb__trace_stepover_percent { name1 name2 op } {
+#=============================================================
+# Tcl variable trace callback — fires every time mom_stepover_percent
+# is written (including during NX parameter loading, before motion events).
+    upvar #0 mom_stepover_percent val
+    if {![info exists val] || $val eq ""} { return }
+    set rounded [pb__round_param_4dec $val]
+    if {![info exists ::path_stepover_percent_list]} { set ::path_stepover_percent_list {} }
+    set last [lindex $::path_stepover_percent_list end]
+    if {$last ne $rounded} {
+        lappend ::path_stepover_percent_list $rounded
     }
 }
 

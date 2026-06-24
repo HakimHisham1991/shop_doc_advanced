@@ -32,6 +32,8 @@ $content = Get-Content $tclFile -Raw
 $anchor  = '    rename PB_load_alternate_unit_settings ""'
 $marker  = '#************'
 $traceLn = 'trace add variable ::mom_stepover_distance write pb__trace_stepover'
+$traceTypeLn = 'trace add variable ::mom_stepover_type write pb__trace_stepover_type'
+$tracePercentLn = 'trace add variable ::mom_stepover_percent write pb__trace_stepover_percent'
 
 $anchorPos = $content.IndexOf($anchor)
 if ($anchorPos -lt 0) {
@@ -49,13 +51,13 @@ if ($markerPos -lt 0) {
 
 # Check if trace line already exists between the anchor and the uplevel marker
 $between = $content.Substring($anchorPos, $markerPos - $anchorPos)
-if ($between.Contains($traceLn)) {
+if ($between.Contains($traceLn) -and $between.Contains($traceTypeLn) -and $between.Contains($tracePercentLn)) {
     Write-Host 'OK: Trace lines already present in MOM_start_of_program -- no changes needed.' -ForegroundColor Green
     pause
     exit 0
 }
 
-$patch = $anchor + "`r`n`r`n    catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }`r`n    trace add variable ::mom_stepover_distance write pb__trace_stepover`r`n"
+$patch = $anchor + "`r`n`r`n    catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }`r`n    trace add variable ::mom_stepover_distance write pb__trace_stepover`r`n    catch { trace remove variable ::mom_stepover_type write pb__trace_stepover_type }`r`n    trace add variable ::mom_stepover_type write pb__trace_stepover_type`r`n    catch { trace remove variable ::mom_stepover_percent write pb__trace_stepover_percent }`r`n    trace add variable ::mom_stepover_percent write pb__trace_stepover_percent`r`n"
 $content = $content.Remove($anchorPos, $anchor.Length).Insert($anchorPos, $patch)
 
 Set-Content $tclFile -Value $content -NoNewline

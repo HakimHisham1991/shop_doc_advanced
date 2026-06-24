@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "oFJNq+BM/EM=",
+  "dgSpecHash": "AJxZjl8GQmE=",
   "success": true,
-  "projectFilePath": "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
+  "projectFilePath": "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\hakim.hisham\\.nuget\\packages\\closedxml\\0.105.0\\closedxml.0.105.0.nupkg.sha512",
     "C:\\Users\\hakim.hisham\\.nuget\\packages\\closedxml.parser\\2.0.0\\closedxml.parser.2.0.0.nupkg.sha512",

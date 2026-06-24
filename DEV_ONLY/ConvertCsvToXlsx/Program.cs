@@ -12,6 +12,9 @@ internal static class Program
     private static readonly string[] MaterialList =
         ["Aluminium", "Titanium", "Steel", "Bronze"];
 
+    private static readonly string[] ProcessSpecsList =
+        ["AIPI 03-11-001", "80-T-30-4010"];
+
     private static readonly string[] SurfaceTypeList =
         ["Finish", "Controlled Roughing", "Free Roughing"];
 
@@ -143,12 +146,14 @@ internal static class Program
             worksheet.Row(1).AdjustToContents();
 
             AddListValidation(worksheet, FindColumn(worksheet, "Material Type"), lastRow, MaterialList);
+            AddListValidation(worksheet, FindColumn(worksheet, "Process Specs"), lastRow, ProcessSpecsList);
             AddListValidation(worksheet, FindFinishTypeColumn(worksheet), lastRow, SurfaceTypeList);
             AddListValidation(worksheet, FindColumn(worksheet, "Cutter Type"), lastRow, MillingTypeList);
             AddListValidation(worksheet, FindColumn(worksheet, "Tool Type (Carbide/HSS/PCD)"), lastRow, ToolTypeList);
             AddListValidation(worksheet, FindColumn(worksheet, "Machining Type (Conventional/HSM)"), lastRow, MachiningTypeList);
 
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Material Type"), lastRow);
+            AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Process Specs"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Cutter Type"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindColumn(worksheet, "Tool Type (Carbide/HSS/PCD)"), lastRow);
             AddBlankConditionalFormatting(worksheet, FindFinishTypeColumn(worksheet), lastRow);

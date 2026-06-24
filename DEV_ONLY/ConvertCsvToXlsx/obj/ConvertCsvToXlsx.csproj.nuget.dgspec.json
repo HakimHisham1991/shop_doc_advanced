@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj": {}
+    "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj": {
+    "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
+        "projectUniqueName": "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
         "projectName": "convert_csv_to_xlsx",
-        "projectPath": "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
+        "projectPath": "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\ConvertCsvToXlsx.csproj",
         "packagesPath": "C:\\Users\\hakim.hisham\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\obj\\",
+        "outputPath": "C:\\Users\\Public\\Documents\\shop_doc_advanced\\shop_doc_advanced\\DEV_ONLY\\ConvertCsvToXlsx\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
