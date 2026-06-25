@@ -8897,7 +8897,7 @@ proc PB_CMD_set_working_plane { } {
 # Returns ae based on stepover_type (sot) and stepover_distance_source (sds).
 # Used by most mill_planar subtypes with the standard 6-case sot pattern.
 
-proc pb__ae_std_sot { sot sds_defined sds stepover_var_1 step_points_2 } {
+proc pb__ae_std_sot_123459 { sot sds_defined sds stepover_var_1 step_points_2 } {
     set final_ae "N/A"
     switch -- $sot {
         1 {
@@ -8911,9 +8911,43 @@ proc pb__ae_std_sot { sot sds_defined sds stepover_var_1 step_points_2 } {
                 }
             }
         }
-        2 { set final_ae "Variable" }
+        2 { set final_ae "NO DATA" }
         3 {
-            if {$stepover_var_1 ne "N/A"} { set final_ae $stepover_var_1 }
+            set rcm ""
+            if {[info exists ::mom_region_cut_method] && $::mom_region_cut_method ne ""} {
+                set rcm $::mom_region_cut_method
+            }
+            if {$rcm in {7 4 5}} {
+                set _max_ae ""
+                for {set _i 0} {$_i <= 5} {incr _i} {
+                    if {![info exists ::mom_stepover_variable_tool_dependent_values_source($_i)] || $::mom_stepover_variable_tool_dependent_values_source($_i) eq ""} {
+                        continue
+                    }
+                    if {![info exists ::mom_stepover_variable_tool_dependent_values($_i)] || $::mom_stepover_variable_tool_dependent_values($_i) eq ""} {
+                        continue
+                    }
+                    set _src $::mom_stepover_variable_tool_dependent_values_source($_i)
+                    set _val $::mom_stepover_variable_tool_dependent_values($_i)
+                    set _pair_ae ""
+                    if {$_src == 0} {
+                        if {[string is double -strict $_val]} {
+                            set _pair_ae [expr {double($_val)}]
+                        }
+                    } elseif {$_src == 4} {
+                        if {[string is double -strict $_val] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                            set _pair_ae [expr {double($_val) / 100.0 * $::mom_tool_diameter}]
+                        }
+                    }
+                    if {$_pair_ae ne "" && ($_max_ae eq "" || $_pair_ae > $_max_ae)} {
+                        set _max_ae $_pair_ae
+                    }
+                }
+                if {$_max_ae ne ""} {
+                    set final_ae [pb__round_param_4dec $_max_ae]
+                }
+            } elseif {$rcm in {1 2 3}} {
+                if {$stepover_var_1 ne "N/A"} { set final_ae $stepover_var_1 }
+            }
         }
         4 {
             if {[info exists ::mom_stepover_percent] && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
@@ -9046,7 +9080,7 @@ proc pb__ae_std_sot_1234_m { sot sds_defined sds stepover_var_1 } {
                 }
             }
         }
-        2 { set final_ae "Variable" }
+        2 { set final_ae "NO DATA" }
         3 {
             if {$stepover_var_1 ne "N/A"} { set final_ae $stepover_var_1 }
         }
@@ -9078,7 +9112,7 @@ proc pb__ae_std_sot_1234 { sot sds_defined sds } {
                 }
             }
         }
-        2 { set final_ae "Variable" }
+        2 { set final_ae "NO DATA" }
         3 {
             set _max_ae ""
             for {set _i 0} {$_i <= 5} {incr _i} {
@@ -9530,7 +9564,7 @@ if {$sds_defined && $mom_stepover_distance_source ne ""}                   { set
 # Subtypes that share the "standard sot" logic are grouped via a common handler token.
 #
 # Tokens used in the value field:
-#   std_sot        -> call pb__ae_std_sot (covers sot 1/2/3/4/5/9)
+#   std_sot_123459        -> call pb__ae_std_sot_123459 (covers sot 1/2/3/4/5/9)
 #   std_sot_14        -> call pb__ae_std_sot_14 (covers sot 1/4)
 #   std_sot_145        -> call pb__ae_std_sot_145 (covers sot 1/4/5)
 #   std_sot_1234   -> call pb__ae_std_sot_1234 (covers sot 1/2/3/4)
@@ -9539,6 +9573,25 @@ if {$sds_defined && $mom_stepover_distance_source ne ""}                   { set
 #   tool_dia       -> ae = tool_diameter
 #   no_data        -> ae = "NO DATA"
 #   planar_profiling -> special: tool type guard + tool_dia
+#
+#   mom_region_cut_method:
+#   1	=	ZIG ZAG
+#   2	=	ZIG
+#   3	=	ZIG ZAG WITH CONTOUR
+#   4	=	FOLLOW PERIPHERY
+#   5	=	PROFILE
+#   7	=	FOLLOW PART
+#   
+#   mom_stepover_type:
+#   1	=	CONSTANT
+#   2	=	SCALLOP
+#   3	=	VARIABLE_AVERAGE (if region = 1,2,3) or MULTIPLE (if region = 4,5,7)
+#   4	=	PERCENT TOOL FLAT
+#   5	=	PASSES
+#   9	=	EXACT
+#
+
+
 
 array set ae_mill_planar {
     FACE_MILL_MIDPASS      tool_dia
@@ -9554,7 +9607,7 @@ array set ae_mill_planar {
     GROOVE_MILLING         std_sot_15
     PLANAR_DEBURRING       no_data
     MILL_CONTROL           no_data
-    FLOOR_FACING           std_sot
+    FLOOR_FACING           std_sot_123459
     FACE_MILLING_MANUAL    std_sot_1234_m
 }
 
@@ -9576,7 +9629,7 @@ catch {
                         set final_ae [pb__ae_tool_dia]
                     }
                 }
-                std_sot          { set final_ae [pb__ae_std_sot $sot $sds_defined $sds $stepover_var_1 $step_points_2] }
+                std_sot_123459   { set final_ae [pb__ae_std_sot_123459 $sot $sds_defined $sds $stepover_var_1 $step_points_2] }
                 std_sot_14       { set final_ae [pb__ae_std_sot_14 $sot $sds_defined $sds] }
                 std_sot_145      { set final_ae [pb__ae_std_sot_145 $sot $sds_defined $sds $step_points_2] }
                 std_sot_1234_m   { set final_ae [pb__ae_std_sot_1234_m $sot $sds_defined $sds $stepover_var_1] }
