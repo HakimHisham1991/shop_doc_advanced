@@ -9274,6 +9274,58 @@ proc pb__ae_adaptive_milling { sot sds_defined sds } {
 }
 
 
+# Returns ae for MULTI_AXIS_ROUGHING (mill_multi-axis).
+proc pb__ae_multi_axis_roughing { sot sds_defined sds } {
+    set final_ae "N/A"
+    set dist_defined [expr {[info exists ::mom_stepover_distance] && $::mom_stepover_distance ne ""}]
+    set src_defined [expr {$sds_defined && [info exists ::mom_stepover_distance_source] && $::mom_stepover_distance_source ne ""}]
+    switch -- $sot {
+        1 {
+            if {$dist_defined} {
+                if {!$src_defined} {
+                    set final_ae [pb__round_param_4dec $::mom_stepover_distance]
+                } elseif {[info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+                }
+            }
+        }
+        2 { set final_ae "NO DATA" }
+        4 {
+            if {[info exists ::mom_stepover_percent] && [info exists ::mom_tool_diameter] && [info exists ::mom_tool_corner1_radius]} {
+                set denom [expr {double($::mom_tool_diameter) - 2.0 * $::mom_tool_corner1_radius}]
+                if {$denom != 0} {
+                    set final_ae [pb__round_param_4dec [expr {double($::mom_stepover_percent) / 100.0 * $denom}]]
+                }
+            }
+        }
+    }
+    return $final_ae
+}
+
+
+# Returns ae for VARIABLE_AXIS_GUIDING_CURVES (mill_multi-axis).
+proc pb__ae_variable_axis_guiding_curves { sot } {
+    set final_ae "N/A"
+    set dist_defined [expr {[info exists ::mom_stepover_distance] && $::mom_stepover_distance ne ""}]
+    set dist_numeric [expr {$dist_defined && [string is double -strict $::mom_stepover_distance]}]
+    set tool_dia_defined [expr {[info exists ::mom_tool_diameter] && $::mom_tool_diameter ne "" && [string is double -strict $::mom_tool_diameter]}]
+    switch -- $sot {
+        1 {
+            if {$dist_numeric} {
+                if {$tool_dia_defined && double($::mom_stepover_distance) > double($::mom_tool_diameter)} {
+                    set final_ae [pb__round_param_4dec $::mom_tool_diameter]
+                } else {
+                    set final_ae [pb__round_param_4dec $::mom_stepover_distance]
+                }
+            }
+        }
+        2 { set final_ae "NO DATA" }
+        5 { set final_ae "NO DATA" }
+    }
+    return $final_ae
+}
+
+
 # Returns ae for 3D_ADAPTIVE_ROUGHING (mill_contour).
 proc pb__ae_3d_adaptive_roughing { sot sot_early sds_defined sds path_stepover_2 } {
     set final_ae "N/A"
@@ -9708,10 +9760,12 @@ catch {
 # Tokens same as mill_contour, plus:
 #   max_stepover   -> ae = mom_maximal_stepover_distance
 #   max_scallop_s  -> max_scallop with strict double check (VARIABLE_CONTOUR)
+#   multi_axis_rgh -> call pb__ae_multi_axis_roughing (MULTI_AXIS_ROUGHING stepover logic)
+#   var_axis_gc    -> call pb__ae_variable_axis_guiding_curves (VARIABLE_AXIS_GUIDING_CURVES stepover logic)
 
 array set ae_mill_multiaxis {
-    MULTI_AXIS_ROUGHING          stepover_dist
-    VARIABLE_AXIS_GUIDING_CURVES stepover_dist
+    MULTI_AXIS_ROUGHING          multi_axis_rgh
+    VARIABLE_AXIS_GUIDING_CURVES var_axis_gc
     CONTOUR_PROFILE              wall_incr
     VARIABLE_STREAMLINE          no_data
     VARIABLE_CONTOUR             max_scallop_s
@@ -9735,6 +9789,8 @@ catch {
                 max_stepover   { set final_ae [pb__ae_ap_var mom_maximal_stepover_distance] }
                 tool_dia       { set final_ae [pb__ae_tool_dia] }
                 deburring      { set final_ae [pb__ae_ap_var mom_deburring_edge_depth] }
+                multi_axis_rgh { set final_ae [pb__ae_multi_axis_roughing $sot $sds_defined $sds] }
+                var_axis_gc    { set final_ae [pb__ae_variable_axis_guiding_curves $sot] }
             }
         }
     }
