@@ -6372,6 +6372,9 @@ puts $file_handle [join [list \
     {mom_stepover_variable_max_min[1]} \
     {mom_step_points[2]} \
     mom_wall_increment \
+    mom_wall_step_method \
+    mom_wall_number_passes \
+    mom_wall_stock_offset \
     mom_maximal_stepover_distance \
     {max(mom_stepover_variable_tool_dependent_values)} \
     mom_deburring_edge_depth \
@@ -6395,6 +6398,8 @@ puts $file_handle [join [list \
     mom_multi_depth_cut_increment \
     mom_horizonal_limit \
     mom_vertical_limit \
+    mom_surface_uv_direction \
+    mom_stepover_uv_direction \
     mom_axial_stepover_distance \
     mom_cycle_step1 \
     mom_cycle_type \
@@ -6404,7 +6409,10 @@ puts $file_handle [join [list \
     mom_vertical_pitch_value_source \
     mom_depth_increment_distance_source \
     mom_depth_increment_distance \
+    mom_cut_levels_mode \
     mom_cut_level_distance \
+    mom_cut_level_distance_source \
+    mom_number_of_cut_levels \
 ] ","]
 }
 
@@ -9397,7 +9405,6 @@ proc pb__ae_tool_dia {} {
 }
 
 # Returns ae = max(scallop, horizonal_limit, vertical_limit).
-# Used by CONTOUR_SURFACE_AREA (mill_contour) and VARIABLE_CONTOUR (mill_multi-axis).
 proc pb__ae_ap_max_scallop_limits { strict_double } {
     set max_val ""
     set any_val 0
@@ -9415,12 +9422,157 @@ proc pb__ae_ap_max_scallop_limits { strict_double } {
     return "N/A"
 }
 
+# Returns ae for CONTOUR_SURFACE_AREA (mill_contour) from stepover type.
+proc pb__ae_contour_surface_area { sot step_points_2 } {
+    if {$sot == 2} {
+        set max_val ""
+        set any_val 0
+        foreach v {::mom_vertical_limit ::mom_horizonal_limit} {
+            if {[info exists $v] && [set $v] ne ""} {
+                set val [set $v]
+                if {![string is double -strict $val]} { continue }
+                if {!$any_val || $val > $max_val} {
+                    set max_val $val
+                    set any_val 1
+                }
+            }
+        }
+        if {$any_val} { return [pb__round_param_4dec $max_val] }
+        return "N/A"
+    }
+    if {$sot == 5} {
+        if {$step_points_2 ne "N/A"} {
+            if {[string is double -strict $step_points_2]} {
+                return "[expr {int(round($step_points_2))}] Passes"
+            }
+            return "$step_points_2 Passes"
+        }
+    }
+    return "N/A"
+}
+
+# Returns ae for VARIABLE_CONTOUR (mill_multi-axis) from stepover type.
+proc pb__ae_variable_contour { sot step_points_2 } {
+    if {$sot == 2} {
+        set max_val ""
+        set any_val 0
+        foreach v {::mom_vertical_limit ::mom_horizonal_limit} {
+            if {[info exists $v] && [set $v] ne ""} {
+                set val [set $v]
+                if {![string is double -strict $val]} { continue }
+                if {!$any_val || $val > $max_val} {
+                    set max_val $val
+                    set any_val 1
+                }
+            }
+        }
+        if {$any_val} { return [pb__round_param_4dec $max_val] }
+        return "N/A"
+    }
+    if {$sot == 5} {
+        if {$step_points_2 ne "N/A" && [string is double -strict $step_points_2]} {
+            return "[expr {int(round($step_points_2)) + 1}] Passes"
+        }
+    }
+    return "N/A"
+}
+
+# Returns ae for CONTOUR_PROFILE (mill_multi-axis) from wall step settings.
+proc pb__ae_contour_profile {} {
+    if {[info exists ::mom_wall_step_method] && $::mom_wall_step_method == 0} {
+        return [pb__ae_ap_var mom_wall_increment]
+    }
+    if {[info exists ::mom_wall_step_method] && $::mom_wall_step_method == 1
+        && [info exists ::mom_wall_number_passes] && $::mom_wall_number_passes ne "" && $::mom_wall_number_passes != 0
+        && [info exists ::mom_wall_stock_offset] && $::mom_wall_stock_offset ne ""} {
+        return [pb__round_param_4dec [expr {double($::mom_wall_stock_offset) / double($::mom_wall_number_passes)}]]
+    }
+    return "N/A"
+}
+
 # Returns value rounded if variable exists, else N/A.
 proc pb__ae_ap_var { varname } {
     if {[info exists ::$varname] && [set ::$varname] ne ""} {
         return [pb__round_param_4dec [set ::$varname]]
     }
     return "N/A"
+}
+
+# Returns ap for FACE_MILL_MIDPASS (mill_planar) from cut-level settings.
+proc pb__ap_face_mill_midpass {} {
+    if {![info exists ::mom_cut_levels_mode]} {
+        return "N/A"
+    }
+    if {$::mom_cut_levels_mode == 1} {
+        if {[info exists ::mom_number_of_cut_levels] && $::mom_number_of_cut_levels ne ""} {
+            set n $::mom_number_of_cut_levels
+            if {[string is double -strict $n]} {
+                return "[expr {int(round($n))}] Passes"
+            }
+            return "$n Passes"
+        }
+        return "N/A"
+    }
+    if {$::mom_cut_levels_mode == 0} {
+        if {![info exists ::mom_cut_level_distance_source]} {
+            return [pb__ae_ap_var mom_cut_level_distance]
+        }
+        if {$::mom_cut_level_distance_source == 4} {
+            if {[info exists ::mom_cut_level_distance] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+                return [pb__round_param_4dec [expr {double($::mom_cut_level_distance) / 100.0 * $::mom_tool_diameter}]]
+            }
+            return "N/A"
+        }
+        if {$::mom_cut_level_distance_source == 7} {
+            if {[info exists ::mom_cut_level_distance] && [info exists ::mom_tool_flute_length]} {
+                return [pb__round_param_4dec [expr {double($::mom_cut_level_distance) / 100.0 * $::mom_tool_flute_length}]]
+            }
+            return "N/A"
+        }
+    }
+    return "N/A"
+}
+
+# Clear mom_* cutting parameters and per-path trace lists after each CSV row.
+proc pb__shop_reset_path_mom_vars {} {
+    foreach v {
+        mom_template_type mom_template_subtype mom_operation_type mom_tool_type
+        mom_tool_corner1_radius mom_tool_flute_length mom_tool_pitch
+        mom_stock_part mom_stock_floor mom_wall_stock mom_z_depth_offset
+        mom_stepover_distance mom_stepover_distance_source mom_stepover_percent
+        mom_stepover_scallop mom_stepover_type
+        mom_wall_increment mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
+        mom_maximal_stepover_distance mom_deburring_edge_depth mom_region_cut_method
+        mom_depth_per_cut mom_cut_level_max_depth mom_global_cut_depth mom_step_ahead_distance
+        mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
+        mom_surface_uv_direction mom_stepover_uv_direction mom_axial_stepover_distance
+        mom_cycle_step1 mom_cycle_type mom_helical_ramp_angle
+        mom_vertical_pitch_type mom_vertical_pitch_value mom_vertical_pitch_value_source
+        mom_depth_increment_distance_source mom_depth_increment_distance
+        mom_cut_levels_mode mom_cut_level_distance mom_cut_level_distance_source mom_number_of_cut_levels
+    } {
+        catch { unset ::$v }
+    }
+
+    foreach arr {
+        mom_stepover_variable_max_min
+        mom_step_points
+        mom_stepover_variable_tool_dependent_values
+        mom_stepover_variable_tool_dependent_values_source
+    } {
+        catch { unset ::$arr }
+    }
+
+    catch { unset ::path_stepover_distance_list }
+    catch { unset ::path_stepover_type_list }
+    catch { unset ::path_stepover_percent_list }
+
+    catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }
+    trace add variable ::mom_stepover_distance write pb__trace_stepover
+    catch { trace remove variable ::mom_stepover_type write pb__trace_stepover_type }
+    trace add variable ::mom_stepover_type write pb__trace_stepover_type
+    catch { trace remove variable ::mom_stepover_percent write pb__trace_stepover_percent }
+    trace add variable ::mom_stepover_percent write pb__trace_stepover_percent
 }
 
 #=============================================================
@@ -9438,9 +9590,11 @@ global mom_part_name
 global mom_z_depth_offset mom_stepover_distance mom_stepover_distance_source
 global mom_stepover_percent mom_stepover_scallop mom_stepover_type
 global mom_stepover_variable_max_min mom_stepover_variable_tool_dependent_values mom_stepover_variable_tool_dependent_values_source mom_step_points
-global mom_depth_per_cut mom_cut_level_max_depth mom_cut_level_distance mom_deburring_edge_depth mom_region_cut_method
+global mom_depth_per_cut mom_cut_level_max_depth mom_cut_levels_mode mom_cut_level_distance mom_cut_level_distance_source mom_number_of_cut_levels mom_deburring_edge_depth mom_region_cut_method
 global mom_global_cut_depth mom_step_ahead_distance mom_wall_increment
+global mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
 global mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
+global mom_surface_uv_direction mom_stepover_uv_direction
 global mom_maximal_stepover_distance mom_axial_stepover_distance
 global mom_cycle_step1 mom_cycle_type
 global mom_nxt_helix_pitch
@@ -9701,6 +9855,7 @@ catch {
 #   no_data        -> ae = "NO DATA"
 #   deburring      -> ae = mom_deburring_edge_depth
 #   max_scallop    -> ae = max(scallop, horiz_limit, vert_limit) — non-strict double check
+#   contour_surface_area -> call pb__ae_contour_surface_area (CONTOUR_SURFACE_AREA stepover type logic)
 #   cavity_mill    -> call pb__ae_cavity_mill (CAVITY_MILL stepover logic)
 #   adaptive_mill  -> call pb__ae_adaptive_milling (ADAPTIVE_MILLING stepover logic)
 #   adaptive_3d    -> call pb__ae_3d_adaptive_roughing (3D_ADAPTIVE_ROUGHING stepover logic)
@@ -9727,7 +9882,7 @@ array set ae_mill_contour {
     SOLID_PROFILE_3D               wall_incr
     PROFILE_3D                     wall_incr
     STREAMLINE                     no_data
-    CONTOUR_SURFACE_AREA           max_scallop
+    CONTOUR_SURFACE_AREA           contour_surface_area
     3_AXIS_DEBURRING               deburring
 }
 
@@ -9746,6 +9901,7 @@ catch {
                 no_data       { set final_ae "NO DATA" }
                 deburring     { set final_ae [pb__ae_ap_var mom_deburring_edge_depth] }
                 max_scallop   { set final_ae [pb__ae_ap_max_scallop_limits 0] }
+                contour_surface_area { set final_ae [pb__ae_contour_surface_area $sot $step_points_2] }
                 cavity_mill   { set final_ae [pb__ae_cavity_mill $sot $sds_defined $sds $stepover_var_1] }
                 plunge_mill   { set final_ae [pb__ae_plunge_mill $sot $sds_defined $sds] }
                 adaptive_mill { set final_ae [pb__ae_adaptive_milling $sot $sds_defined $sds] }
@@ -9759,16 +9915,18 @@ catch {
 # --- mill_multi-axis Ae dispatch table ---
 # Tokens same as mill_contour, plus:
 #   max_stepover   -> ae = mom_maximal_stepover_distance
-#   max_scallop_s  -> max_scallop with strict double check (VARIABLE_CONTOUR)
+#   max_scallop_s  -> max_scallop with strict double check
 #   multi_axis_rgh -> call pb__ae_multi_axis_roughing (MULTI_AXIS_ROUGHING stepover logic)
 #   var_axis_gc    -> call pb__ae_variable_axis_guiding_curves (VARIABLE_AXIS_GUIDING_CURVES stepover logic)
+#   contour_profile -> call pb__ae_contour_profile (CONTOUR_PROFILE wall step logic)
+#   variable_contour -> call pb__ae_variable_contour (VARIABLE_CONTOUR stepover type logic)
 
 array set ae_mill_multiaxis {
     MULTI_AXIS_ROUGHING          multi_axis_rgh
     VARIABLE_AXIS_GUIDING_CURVES var_axis_gc
-    CONTOUR_PROFILE              wall_incr
+    CONTOUR_PROFILE              contour_profile
     VARIABLE_STREAMLINE          no_data
-    VARIABLE_CONTOUR             max_scallop_s
+    VARIABLE_CONTOUR             variable_contour
     WALL_FINISH-BARREL_SWARF     max_stepover
     ZLEVEL_5AXIS                 tool_dia
     5_AXIS_DEBURRING             deburring
@@ -9784,6 +9942,8 @@ catch {
             switch -- $ae_mill_multiaxis($st) {
                 stepover_dist  { set final_ae [pb__ae_ap_var mom_stepover_distance] }
                 wall_incr      { set final_ae [pb__ae_ap_var mom_wall_increment] }
+                contour_profile { set final_ae [pb__ae_contour_profile] }
+                variable_contour { set final_ae [pb__ae_variable_contour $sot $step_points_2] }
                 no_data        { set final_ae "NO DATA" }
                 max_scallop_s  { set final_ae [pb__ae_ap_max_scallop_limits 1] }
                 max_stepover   { set final_ae [pb__ae_ap_var mom_maximal_stepover_distance] }
@@ -9859,11 +10019,12 @@ catch {
 #   z_depth_offset  -> ap = mom_z_depth_offset
 #   cut_level_max   -> ap = mom_cut_level_max_depth
 #   no_data         -> ap = "NO DATA"
+#   face_mill_midpass -> call pb__ap_face_mill_midpass (FACE_MILL_MIDPASS cut-level logic)
 
 array set ap_mill_planar {
-    FACE_MILL_MIDPASS    cut_level_dist
-    FACE_MILL_SPIRAL     cut_level_dist
-    FACE_MILL_ZIGZAG     cut_level_dist
+    FACE_MILL_MIDPASS    face_mill_midpass
+    FACE_MILL_SPIRAL     face_mill_midpass
+    FACE_MILL_ZIGZAG     face_mill_midpass
     2D_WALL_MILL         cut_level_dist
     FLOOR_WALL           depth_per_cut
     POCKETING            depth_per_cut
@@ -9887,6 +10048,7 @@ catch {
         if {[info exists ap_mill_planar($st)]} {
             switch -- $ap_mill_planar($st) {
                 cut_level_dist   { set final_ap [pb__ae_ap_var mom_cut_level_distance] }
+                face_mill_midpass { set final_ap [pb__ap_face_mill_midpass] }
                 depth_per_cut    { set final_ap [pb__ae_ap_var mom_depth_per_cut] }
                 z_depth_offset   { set final_ap [pb__ae_ap_var mom_z_depth_offset] }
                 cut_level_max    { set final_ap [pb__ae_ap_var mom_cut_level_max_depth] }
@@ -10132,6 +10294,9 @@ set row_fields [list \
     $stepover_var_1 \
     $step_points_2 \
     [pb__mom_var_or_na mom_wall_increment] \
+    [pb__mom_var_or_na mom_wall_step_method] \
+    [pb__mom_var_or_na mom_wall_number_passes] \
+    [pb__mom_var_or_na mom_wall_stock_offset] \
     [pb__mom_var_or_na mom_maximal_stepover_distance] \
     $max_stepover_var_tool_dep \
     [pb__mom_var_or_na mom_deburring_edge_depth] \
@@ -10155,6 +10320,8 @@ set row_fields [list \
     [pb__mom_var_or_na mom_multi_depth_cut_increment] \
     [pb__mom_var_or_na mom_horizonal_limit] \
     [pb__mom_var_or_na mom_vertical_limit] \
+    [pb__mom_var_or_na mom_surface_uv_direction] \
+    [pb__mom_var_or_na mom_stepover_uv_direction] \
     [pb__mom_var_or_na mom_axial_stepover_distance] \
     [pb__mom_var_or_na mom_cycle_step1] \
     [pb__mom_var_or_na mom_cycle_type] \
@@ -10164,36 +10331,16 @@ set row_fields [list \
     [pb__mom_var_or_na mom_vertical_pitch_value_source] \
     [pb__mom_var_or_na mom_depth_increment_distance_source] \
     [pb__mom_var_or_na mom_depth_increment_distance] \
+    [pb__mom_var_or_na mom_cut_levels_mode] \
     [pb__mom_var_or_na mom_cut_level_distance] \
+    [pb__mom_var_or_na mom_cut_level_distance_source] \
+    [pb__mom_var_or_na mom_number_of_cut_levels] \
 ]
 
 set quoted_row [join [lmap field $row_fields {pb__csv_quote $field}] ","]
 puts $file_handle $quoted_row
 
-# Reset all cutting-parameter mom variables so they do not carry over to the next path
-foreach v {
-    mom_stock_part mom_stock_floor mom_wall_stock mom_z_depth_offset
-    mom_stepover_distance mom_stepover_distance_source mom_stepover_percent
-    mom_stepover_scallop mom_stepover_type mom_depth_per_cut mom_cut_level_max_depth
-    mom_deburring_edge_depth mom_region_cut_method mom_global_cut_depth mom_step_ahead_distance
-    mom_wall_increment mom_multi_depth_cut_increment mom_horizonal_limit
-    mom_vertical_limit mom_maximal_stepover_distance mom_axial_stepover_distance
-    mom_cycle_step1
-} {
-    catch { unset $v }
-}
-
-# Re-arm the trace - unsetting mom_stepover_distance above removes it
-catch { trace remove variable ::mom_stepover_distance write pb__trace_stepover }
-trace add variable ::mom_stepover_distance write pb__trace_stepover
-catch { trace remove variable ::mom_stepover_type write pb__trace_stepover_type }
-trace add variable ::mom_stepover_type write pb__trace_stepover_type
-catch { trace remove variable ::mom_stepover_percent write pb__trace_stepover_percent }
-trace add variable ::mom_stepover_percent write pb__trace_stepover_percent
-
-catch { unset ::path_stepover_distance_list }
-catch { unset ::path_stepover_type_list }
-catch { unset ::path_stepover_percent_list }
+pb__shop_reset_path_mom_vars
 }
 
 

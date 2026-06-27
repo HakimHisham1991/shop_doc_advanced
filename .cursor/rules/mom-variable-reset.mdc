@@ -1,0 +1,43 @@
+---
+description: Unset mom_* variables after each operation so CSV/XLSX rows do not inherit stale values
+globs: shop_doc_advanced.tcl
+alwaysApply: false
+---
+
+# Reset mom_* variables after each operation
+
+NX does not always clear every `mom_*` variable between operations. Values can spill into the next row and produce wrong shop-doc CSV/XLSX output.
+
+Whenever you add or use a new `mom_*` variable for shop-doc columns or Ae/Ap logic, also reset it at the end of each path.
+
+## Required reset location
+
+Add every new variable to `pb__shop_reset_path_mom_vars` in `shop_doc_advanced.tcl`:
+
+- **Scalar** `mom_*` → add to the `foreach v { ... }` list (unset uses `unset ::$v` on globals)
+- **Array** `mom_*` (e.g. `mom_step_points(2)`) → add the array name to the `foreach arr { ... }` list (unset uses `unset ::$arr`)
+- **Do not reset** session accumulators such as `mom_machine_time` — `MOM_start_of_path` reads it to snapshot cycle time for the next operation
+- **Trace-derived columns** (`path_stepover_1/2/3`, `mom_stepover_type_early`, `mom_stepover_percent_1/2/3`) → use existing trace lists; reset is already handled there
+
+`pb__shop_reset_path_mom_vars` is called at the end of `PB_CMD_shop_end_path` after each CSV row is written. It runs in its own proc, so resets must use the global namespace (`unset ::$v`), not bare `unset $v`.
+
+## Checklist when adding a new mom column
+
+1. CSV header in `PB_CMD_header_start`
+2. Row field in `PB_CMD_shop_end_path`
+3. `global` declaration in `PB_CMD_shop_end_path` if read directly
+4. **`pb__shop_reset_path_mom_vars`** — do not skip this step
+
+## Example
+
+```tcl
+# In pb__shop_reset_path_mom_vars — must use ::$v (global namespace)
+foreach v {
+    ...
+    mom_cut_level_distance_source
+} {
+    catch { unset ::$v }
+}
+```
+
+If the variable is missing from the reset list, the next operation may show the previous operation's value instead of `N/A`.
