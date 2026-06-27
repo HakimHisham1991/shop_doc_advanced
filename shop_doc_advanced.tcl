@@ -6393,6 +6393,7 @@ puts $file_handle [join [list \
     {mom_stepover_variable_tool_dependent_values_source[5]} \
     mom_depth_per_cut \
     mom_cut_level_max_depth \
+    mom_depth_of_cut_type \
     mom_global_cut_depth \
     mom_step_ahead_distance \
     mom_multi_depth_cut_increment \
@@ -6401,6 +6402,9 @@ puts $file_handle [join [list \
     mom_surface_uv_direction \
     mom_stepover_uv_direction \
     mom_axial_stepover_distance \
+    mom_axial_stepover_type \
+    mom_axial_stepover_passes \
+    mom_axial_stepover_percent \
     mom_cycle_step1 \
     mom_cycle_type \
     mom_helical_ramp_angle \
@@ -9533,6 +9537,55 @@ proc pb__ap_face_mill_midpass {} {
     return "N/A"
 }
 
+# Returns ap for PLANAR_MILL (mill_planar) from depth-of-cut type.
+proc pb__ap_planar_mill {} {
+    if {![info exists ::mom_depth_of_cut_type]} {
+        return "N/A"
+    }
+    switch -- $::mom_depth_of_cut_type {
+        0 -
+        4 { return [pb__ae_ap_var mom_cut_level_max_depth] }
+        1 -
+        2 -
+        3 { return "NO DATA" }
+    }
+    return "N/A"
+}
+
+# Returns ap for GROOVE_MILLING (mill_planar) from axial stepover settings.
+proc pb__ap_groove_milling {} {
+    if {![info exists ::mom_axial_stepover_type]} {
+        return "N/A"
+    }
+    if {$::mom_axial_stepover_type == 2} {
+        if {[info exists ::mom_axial_stepover_passes] && $::mom_axial_stepover_passes ne ""} {
+            set n $::mom_axial_stepover_passes
+            if {[string is double -strict $n]} {
+                return "[expr {int(round($n))}] Passes"
+            }
+            return "$n Passes"
+        }
+        return "N/A"
+    }
+    if {$::mom_axial_stepover_type == 3} {
+        if {[info exists ::mom_axial_stepover_distance_source] && $::mom_axial_stepover_distance_source == 4
+            && [info exists ::mom_axial_stepover_percent] && [info exists ::mom_tool_flute_length]} {
+            return [pb__round_param_4dec [expr {double($::mom_axial_stepover_percent) / 100.0 * $::mom_tool_flute_length}]]
+        }
+        return "N/A"
+    }
+    if {$::mom_axial_stepover_type == 6} {
+        if {![info exists ::mom_axial_stepover_distance_source]} {
+            return [pb__ae_ap_var mom_axial_stepover_distance]
+        }
+        if {[info exists ::mom_axial_stepover_distance] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+            return [pb__round_param_4dec [expr {double($::mom_axial_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+        }
+        return "N/A"
+    }
+    return "N/A"
+}
+
 # Clear mom_* cutting parameters and per-path trace lists after each CSV row.
 proc pb__shop_reset_path_mom_vars {} {
     foreach v {
@@ -9543,9 +9596,10 @@ proc pb__shop_reset_path_mom_vars {} {
         mom_stepover_scallop mom_stepover_type
         mom_wall_increment mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
         mom_maximal_stepover_distance mom_deburring_edge_depth mom_region_cut_method
-        mom_depth_per_cut mom_cut_level_max_depth mom_global_cut_depth mom_step_ahead_distance
+        mom_depth_per_cut mom_cut_level_max_depth mom_depth_of_cut_type mom_global_cut_depth mom_step_ahead_distance
         mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
-        mom_surface_uv_direction mom_stepover_uv_direction mom_axial_stepover_distance
+        mom_surface_uv_direction mom_stepover_uv_direction mom_axial_stepover_distance mom_axial_stepover_distance_source
+        mom_axial_stepover_type mom_axial_stepover_passes mom_axial_stepover_percent
         mom_cycle_step1 mom_cycle_type mom_helical_ramp_angle
         mom_vertical_pitch_type mom_vertical_pitch_value mom_vertical_pitch_value_source
         mom_depth_increment_distance_source mom_depth_increment_distance
@@ -9590,12 +9644,12 @@ global mom_part_name
 global mom_z_depth_offset mom_stepover_distance mom_stepover_distance_source
 global mom_stepover_percent mom_stepover_scallop mom_stepover_type
 global mom_stepover_variable_max_min mom_stepover_variable_tool_dependent_values mom_stepover_variable_tool_dependent_values_source mom_step_points
-global mom_depth_per_cut mom_cut_level_max_depth mom_cut_levels_mode mom_cut_level_distance mom_cut_level_distance_source mom_number_of_cut_levels mom_deburring_edge_depth mom_region_cut_method
+global mom_depth_per_cut mom_cut_level_max_depth mom_depth_of_cut_type mom_cut_levels_mode mom_cut_level_distance mom_cut_level_distance_source mom_number_of_cut_levels mom_deburring_edge_depth mom_region_cut_method
 global mom_global_cut_depth mom_step_ahead_distance mom_wall_increment
 global mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
 global mom_multi_depth_cut_increment mom_horizonal_limit mom_vertical_limit
 global mom_surface_uv_direction mom_stepover_uv_direction
-global mom_maximal_stepover_distance mom_axial_stepover_distance
+global mom_maximal_stepover_distance mom_axial_stepover_distance mom_axial_stepover_type mom_axial_stepover_passes mom_axial_stepover_percent
 global mom_cycle_step1 mom_cycle_type
 global mom_nxt_helix_pitch
 global mom_vertical_pitch_type mom_vertical_pitch_value_source mom_vertical_pitch_value
@@ -10020,19 +10074,21 @@ catch {
 #   cut_level_max   -> ap = mom_cut_level_max_depth
 #   no_data         -> ap = "NO DATA"
 #   face_mill_midpass -> call pb__ap_face_mill_midpass (FACE_MILL_MIDPASS cut-level logic)
+#   planar_mill       -> call pb__ap_planar_mill (PLANAR_MILL depth-of-cut type logic)
+#   groove_milling    -> call pb__ap_groove_milling (GROOVE_MILLING axial stepover logic)
 
 array set ap_mill_planar {
     FACE_MILL_MIDPASS    face_mill_midpass
     FACE_MILL_SPIRAL     face_mill_midpass
     FACE_MILL_ZIGZAG     face_mill_midpass
-    2D_WALL_MILL         cut_level_dist
+    2D_WALL_MILL         face_mill_midpass
     FLOOR_WALL           depth_per_cut
     POCKETING            depth_per_cut
     WALL_PROFILING       depth_per_cut
     WALL_FLOOR_PROFILING depth_per_cut
-    PLANAR_PROFILING     z_depth_offset
-    PLANAR_MILL          cut_level_max
-    GROOVE_MILLING       ax_stepover_dist
+    PLANAR_PROFILING     planar_mill
+    PLANAR_MILL          planar_mill
+    GROOVE_MILLING       groove_milling
     PLANAR_DEBURRING     no_data
     MILL_CONTROL         no_data
     FLOOR_FACING         depth_per_cut
@@ -10049,6 +10105,8 @@ catch {
             switch -- $ap_mill_planar($st) {
                 cut_level_dist   { set final_ap [pb__ae_ap_var mom_cut_level_distance] }
                 face_mill_midpass { set final_ap [pb__ap_face_mill_midpass] }
+                planar_mill     { set final_ap [pb__ap_planar_mill] }
+                groove_milling  { set final_ap [pb__ap_groove_milling] }
                 depth_per_cut    { set final_ap [pb__ae_ap_var mom_depth_per_cut] }
                 z_depth_offset   { set final_ap [pb__ae_ap_var mom_z_depth_offset] }
                 cut_level_max    { set final_ap [pb__ae_ap_var mom_cut_level_max_depth] }
@@ -10315,6 +10373,7 @@ set row_fields [list \
     [lindex $stepover_var_tool_dep_src_cols 5] \
     [pb__mom_var_or_na mom_depth_per_cut] \
     [pb__mom_var_or_na mom_cut_level_max_depth] \
+    [pb__mom_var_or_na mom_depth_of_cut_type] \
     [pb__mom_var_or_na mom_global_cut_depth] \
     [pb__mom_var_or_na mom_step_ahead_distance] \
     [pb__mom_var_or_na mom_multi_depth_cut_increment] \
@@ -10323,6 +10382,9 @@ set row_fields [list \
     [pb__mom_var_or_na mom_surface_uv_direction] \
     [pb__mom_var_or_na mom_stepover_uv_direction] \
     [pb__mom_var_or_na mom_axial_stepover_distance] \
+    [pb__mom_var_or_na mom_axial_stepover_type] \
+    [pb__mom_var_or_na mom_axial_stepover_passes] \
+    [pb__mom_var_or_na mom_axial_stepover_percent] \
     [pb__mom_var_or_na mom_cycle_step1] \
     [pb__mom_var_or_na mom_cycle_type] \
     [pb__mom_var_or_na mom_helical_ramp_angle] \
