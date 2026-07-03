@@ -1,6 +1,6 @@
 # shop_doc_advanced — Siemens NX Post-Processor
 
-**Current version: 1.1.9** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+**Current version: 1.1.10** — see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Custom CAM post-processor for **Siemens NX** (Design Center / NX 2512 tested) that exports **shop documentation** as CSV and converts it to a formatted **Excel workbook (.xlsx)** for planners and operators.
 

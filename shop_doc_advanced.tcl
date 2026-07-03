@@ -9770,16 +9770,16 @@ proc pb__ap_zlevel_5axis {} {
 
 # Returns ap for WALL_FINISH-BARREL_SWARF (mill_multi-axis) from maximal stepover settings.
 proc pb__ap_wall_finish_barrel_swarf {} {
-    if {![info exists ::mom_cut_level_distance_source]} {
+    if {![info exists ::mom_maximal_stepover_distance_source]} {
         return [pb__ae_ap_var mom_maximal_stepover_distance]
     }
-    if {$::mom_cut_level_distance_source == 4} {
+    if {$::mom_maximal_stepover_distance_source == 4} {
         if {[info exists ::mom_maximal_stepover_distance] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
             return [pb__round_param_4dec [expr {double($::mom_maximal_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
         }
         return "N/A"
     }
-    if {$::mom_cut_level_distance_source == 7} {
+    if {$::mom_maximal_stepover_distance_source == 7} {
         if {[info exists ::mom_maximal_stepover_distance] && [info exists ::mom_tool_flute_length] && $::mom_tool_flute_length != 0} {
             return [pb__round_param_4dec [expr {double($::mom_maximal_stepover_distance) / 100.0 * $::mom_tool_flute_length}]]
         }

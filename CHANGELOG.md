@@ -2,11 +2,17 @@
 
 All notable changes to **shop_doc_advanced** are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [1.1.10] - 2026-07-03
+
+### Fixed
+
+- **`WALL_FINISH-BARREL_SWARF` Ap:** use `mom_maximal_stepover_distance_source` (not `mom_cut_level_distance_source`) so % diameter and % flute cases compute correctly.
+
 ## [1.1.9] - 2026-07-03
 
 ### Added
 
-- **`pb__ap_wall_finish_barrel_swarf`** — Final Ap for `WALL_FINISH-BARREL_SWARF` (`ap_mill_multiaxis`): MM / % diameter / % flute from `mom_maximal_stepover_distance` keyed by `mom_cut_level_distance_source`.
+- **`pb__ap_wall_finish_barrel_swarf`** — Final Ap for `WALL_FINISH-BARREL_SWARF` (`ap_mill_multiaxis`): MM / % diameter / % flute from `mom_maximal_stepover_distance` keyed by `mom_maximal_stepover_distance_source`.
 
 ## [1.1.8] - 2026-07-03
 
@@ -97,6 +103,7 @@ All notable changes to **shop_doc_advanced** are documented here. Format follows
 
 - Initial shop-doc post: CSV export, ClosedXML XLSX conversion, table styling, validation lists, and base `mom_*` parameter columns.
 
+[1.1.10]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.9...v1.1.10
 [1.1.9]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.8...v1.1.9
 [1.1.8]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.7...v1.1.8
 [1.1.7]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.6...v1.1.7
