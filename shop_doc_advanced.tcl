@@ -206,6 +206,9 @@ proc PB_CMD___log_revisions { } {
 	# Append detailed diagnostics at bottom of CSV (3 blank rows + ERROR LOG table)
 	#   0 = off   1 = on
 	set mom_sys_csv_error_log_enabled   1
+	# Show mom_* / path_* parameter columns in XLSX (data always in CSV)
+	#   1 = all columns visible   0 = hide mom_template_type through last column
+	set mom_sys_xlsx_show_mom_columns   1
 	# Folder containing convert_csv_to_xlsx.exe — same directory as this post (.tcl)
 	if { ![info exists mom_sys_this_post_dir] } {
 		set mom_sys_this_post_dir [file dirname [info script]]
@@ -5597,9 +5600,15 @@ proc PB_CMD_csv_parse_converter_output { output } {
 proc PB_CMD_csv_run_preflight { csv_file xlsx_file converter_exe } {
 #=============================================================
    global mom_sys_converter_dir mom_sys_this_post_dir mom_sys_csv_to_xlsx_enabled
+   global mom_sys_xlsx_show_mom_columns
 
    set errlog_flag 0
    if { [PB_CMD_csv_log_enabled] } { set errlog_flag 1 }
+
+   set mom_cols_flag 1
+   if { [info exists mom_sys_xlsx_show_mom_columns] } {
+      set mom_cols_flag $mom_sys_xlsx_show_mom_columns
+   }
 
    PB_CMD_csv_log_add "INFO" "System" "Platform: $::tcl_platform(platform) $::tcl_platform(os) $::tcl_platform(osVersion)"
    PB_CMD_csv_log_add "INFO" "System" "User: [PB_CMD_csv_safe_env USERNAME]  Computer: [PB_CMD_csv_safe_env COMPUTERNAME]"
@@ -5607,6 +5616,7 @@ proc PB_CMD_csv_run_preflight { csv_file xlsx_file converter_exe } {
    PB_CMD_csv_log_add "INFO" "System" "Converter directory: $mom_sys_converter_dir"
    PB_CMD_csv_log_add "INFO" "Settings" "mom_sys_csv_to_xlsx_enabled=$mom_sys_csv_to_xlsx_enabled"
    PB_CMD_csv_log_add "INFO" "Settings" "mom_sys_csv_error_log_enabled=$errlog_flag"
+   PB_CMD_csv_log_add "INFO" "Settings" "mom_sys_xlsx_show_mom_columns=$mom_cols_flag"
 
    if { ![info exists mom_sys_csv_to_xlsx_enabled] || $mom_sys_csv_to_xlsx_enabled == 0 } {
       PB_CMD_csv_log_add "INFO" "XLSX" "CSV-to-XLSX conversion is disabled in post settings"
@@ -5694,7 +5704,7 @@ proc PB_CMD_csv_log_flush { csv_file } {
 proc PB_CMD_convert_csv_to_xlsx { } {
 #=============================================================
    global mom_sys_csv_to_xlsx_enabled mom_sys_converter_dir ptp_file_name
-   global mom_sys_this_post_dir csv_output_path
+   global mom_sys_this_post_dir csv_output_path mom_sys_xlsx_show_mom_columns
 
    if { ![info exists mom_sys_this_post_dir] } {
       set mom_sys_this_post_dir [file dirname [info script]]
@@ -5744,12 +5754,17 @@ proc PB_CMD_convert_csv_to_xlsx { } {
    set exec_err ""
    set exec_out ""
 
+   set mom_cols_flag 1
+   if { [info exists mom_sys_xlsx_show_mom_columns] } {
+      set mom_cols_flag $mom_sys_xlsx_show_mom_columns
+   }
+
    PB_CMD_csv_log_add "INFO" "Runtime" "Launching converter: $converter_exe"
 
    catch { unset ::shop_doc_xlsx_output_path }
 
    if { [catch {
-      exec [file nativename $converter_exe] [file nativename $csv_file] [file nativename $xlsx_file]
+      exec [file nativename $converter_exe] [file nativename $csv_file] [file nativename $xlsx_file] $mom_cols_flag
    } exec_out] } {
       set exec_err $exec_out
       PB_CMD_csv_log_add "ERROR" "Runtime" "Converter launch failed: $exec_out"

@@ -1,6 +1,6 @@
 # shop_doc_advanced — Siemens NX Post-Processor
 
-**Current version: 1.1.10** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+**Current version: 1.1.11** — see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Custom CAM post-processor for **Siemens NX** (Design Center / NX 2512 tested) that exports **shop documentation** as CSV and converts it to a formatted **Excel workbook (.xlsx)** for planners and operators.
 
@@ -143,6 +143,7 @@ Near the top of the post file:
 ```tcl
 set mom_sys_csv_to_xlsx_enabled     1   ;# 0 = CSV only, no XLSX
 set mom_sys_csv_error_log_enabled   1   ;# 0 = no ERROR LOG appendix
+set mom_sys_xlsx_show_mom_columns   1   ;# 0 = hide mom_template_type through last column in XLSX
 set mom_sys_converter_dir           $mom_sys_this_post_dir
 ```
 
@@ -150,6 +151,7 @@ set mom_sys_converter_dir           $mom_sys_this_post_dir
 |----------|---------|---------|
 | `mom_sys_csv_to_xlsx_enabled` | `1` | Run converter at end of post |
 | `mom_sys_csv_error_log_enabled` | `1` | Append ERROR LOG table to CSV on failure or for diagnostics |
+| `mom_sys_xlsx_show_mom_columns` | `1` | `1` = all columns visible in XLSX; `0` = hide `mom_template_type` through last column (data remains, columns hidden) |
 | `mom_sys_converter_dir` | Post directory | Folder containing `convert_csv_to_xlsx.exe` |
 
 ### Environment variables

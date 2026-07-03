@@ -411,4 +411,4 @@ C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCs
 C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCsvToXlsx\obj\Release\net8.0\win-x64\convert_csv_to_xlsx.pdb
 C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCsvToXlsx\obj\Release\net8.0\win-x64\ConvertCsvToXlsx.genruntimeconfig.cache
 C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCsvToXlsx\obj\Release\net8.0\win-x64\ref\convert_csv_to_xlsx.dll
-C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCsvToXlsx\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2826.26413.dll
+C:\Users\Public\Documents\shop_doc_advanced\shop_doc_advanced\DEV_ONLY\ConvertCsvToXlsx\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2626.16921.dll

@@ -41,7 +41,8 @@ internal static class Program
 
         if (args.Length < 1)
         {
-            Log("ERROR", "Script", "Usage: convert_csv_to_xlsx.exe input.csv [output.xlsx]");
+            Log("ERROR", "Script",
+                "Usage: convert_csv_to_xlsx.exe input.csv [output.xlsx] [show_mom_columns]");
             return 1;
         }
 
@@ -52,11 +53,19 @@ internal static class Program
                 Path.GetDirectoryName(csvFile) ?? ".",
                 Path.GetFileNameWithoutExtension(csvFile) + ".xlsx");
 
+        var showMomColumns = 1;
+        if (args.Length > 2
+            && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedShowMom))
+        {
+            showMomColumns = parsedShowMom;
+        }
+
         xlsxFile = ResolveUniqueXlsxPath(xlsxFile);
 
         Log("INFO", "Script", "convert_csv_to_xlsx.exe started (ClosedXML, no Excel COM)");
         Log("INFO", "Paths", "CSV input: " + csvFile);
         Log("INFO", "Paths", "XLSX output: " + xlsxFile);
+        Log("INFO", "Settings", "show_mom_columns=" + showMomColumns);
 
         if (!File.Exists(csvFile))
         {
@@ -162,6 +171,21 @@ internal static class Program
             worksheet.SheetView.FreezeRows(1);
             worksheet.SheetView.FreezeColumns(1);
             Log("INFO", "Format", "Applied freeze panes");
+
+            if (showMomColumns == 0)
+            {
+                var momCol = FindColumn(worksheet, "mom_template_type");
+                if (momCol > 0)
+                {
+                    worksheet.Columns(momCol, lastCol).Hide();
+                    Log("INFO", "Format",
+                        "Hidden columns " + momCol + "-" + lastCol + " (mom_template_type through last column)");
+                }
+                else
+                {
+                    Log("WARN", "Format", "mom_template_type column not found - no columns hidden");
+                }
+            }
 
             workbook.SaveAs(xlsxFile);
             Log("INFO", "XLSX", "Saved XLSX successfully: " + xlsxFile);

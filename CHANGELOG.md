@@ -2,6 +2,12 @@
 
 All notable changes to **shop_doc_advanced** are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [1.1.11] - 2026-07-03
+
+### Added
+
+- **`mom_sys_xlsx_show_mom_columns`** — when `0`, the XLSX converter hides columns from `mom_template_type` through the last column (data remains in the sheet; CSV is unchanged). Default `1` shows all columns.
+
 ## [1.1.10] - 2026-07-03
 
 ### Fixed
@@ -103,6 +109,7 @@ All notable changes to **shop_doc_advanced** are documented here. Format follows
 
 - Initial shop-doc post: CSV export, ClosedXML XLSX conversion, table styling, validation lists, and base `mom_*` parameter columns.
 
+[1.1.11]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.10...v1.1.11
 [1.1.10]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.9...v1.1.10
 [1.1.9]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.8...v1.1.9
 [1.1.8]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.7...v1.1.8
