@@ -21,30 +21,26 @@ Built with **Post Builder** for a **5-axis dual-table** mill. Primary output is 
 | **Error log** | Optional diagnostics appended to output (see below) |
 | **Guest / offline** | No admin rights, no Office license, no network required at runtime |
 | **CSV-only mode** | Optional env var to skip motion output for faster posts on huge toolpaths |
-| **Final Ae / Ap** | Table-driven radial (ae) and axial (ap) DOC per `mom_template_type` + subtype — see below |
+| **Final Ae / Ap** | Table-driven radial (ae) and axial (ap) DOC per `mom_template_type` + subtype — see [SUBTYPE_AE_AP_LOGIC.md](SUBTYPE_AE_AP_LOGIC.md) |
 
 ---
 
 ## Final Ae and Final Ap (shop-doc columns)
 
-The post computes **Radial (ae) D.O.C** and **Axial (ap) D.O.C** from NX `mom_*` variables using dispatch tables in `shop_doc_advanced.tcl`:
+At **end of path** (`PB_CMD_shop_end_path`), the post fills the shop-doc **Radial (ae) D.O.C** and **Axial (ap) D.O.C** columns from NX `mom_*` cutting parameters. Logic is table-driven: each `mom_template_type` + `mom_template_subtype` maps to a handler in `shop_doc_advanced.tcl`, which calls shared `pb__ae_*` / `pb__ap_*` procs for stepover type, depth source, multi-pass, and similar rules.
 
-| Template type | Dispatch array | Examples |
-|---------------|----------------|----------|
-| `mill_planar` | `ae_mill_planar`, `ap_mill_planar` | `FACE_MILL_MIDPASS`, `PLANAR_MILL`, `GROOVE_MILLING` |
-| `mill_contour` | `ae_mill_contour`, `ap_mill_contour` | `CAVITY_MILL`, `AREA_MILL`, `SOLID_PROFILE_3D` |
-| `mill_multi-axis` | `ae_mill_multiaxis`, `ap_mill_multiaxis` | `MULTI_AXIS_ROUGHING`, `VARIABLE_CONTOUR` |
-| `hole_making` | `ap_hole_making` | `DRILLING`, `HOLE_MILLING` |
+| Template type | Dispatch arrays | Subtypes | Example subtypes |
+|---------------|-----------------|----------|------------------|
+| `mill_planar` | `ae_mill_planar`, `ap_mill_planar` | 15 | `FACE_MILL_MIDPASS`, `PLANAR_MILL`, `GROOVE_MILLING` |
+| `mill_contour` | `ae_mill_contour`, `ap_mill_contour` | 22 | `CAVITY_MILL`, `AREA_MILL`, `SOLID_PROFILE_3D` |
+| `mill_multi-axis` | `ae_mill_multiaxis`, `ap_mill_multiaxis` | 8 | `MULTI_AXIS_ROUGHING`, `VARIABLE_CONTOUR`, `ZLEVEL_5AXIS` |
+| `hole_making` | `ae_hole_making`, `ap_hole_making` | 7 | `DRILLING`, `HOLE_MILLING`, `THREAD_MILLING` |
 
-Subtype-specific rules (constant depth, scallop, stepover type, multi-depth passes, etc.) live in `pb__ae_*` / `pb__ap_*` procs. Unmatched or missing inputs output `N/A` or `NO DATA` as defined per subtype.
+**Full reference:** [SUBTYPE_AE_AP_LOGIC.md](SUBTYPE_AE_AP_LOGIC.md) — every subtype, handler token, stepover-type branch, and formula (`N/A` vs `NO DATA`, region cut method, traced `path_stepover_*` lists, etc.). Use that file when auditing or extending Ae/Ap rules.
 
-**v1.1.0 highlights:**
+If no dispatch entry matches, or required inputs are missing, **Final Ae** / **Final Ap** stay **`N/A`** until a handler sets them; individual subtypes may return **`NO DATA`** when the CAM setting is intentionally unsupported.
 
-- **mill_planar Ap:** `FACE_MILL_MIDPASS` / spiral / zigzag / `2D_WALL_MILL` cut-level logic; planar mill, groove milling
-- **mill_contour Ap/Ae:** common depth / scallop; stepover vs flute; FLOW multiple/ref; profile 3D multi-depth; `3D_ADAPTIVE_ROUGHING` cut-level Ap (MM / % diameter / % flute)
-- **mill_multi-axis Ap:** `MULTI_AXIS_ROUGHING` cut-level Ap; `CONTOUR_PROFILE` multi-depth; `ZLEVEL_5AXIS` global cut depth / scallop; `WALL_FINISH-BARREL_SWARF` maximal stepover
-
-After each tool path, cutting `mom_*` variables are reset so the next CSV row does not inherit stale values (see `.cursor/rules/mom-variable-reset.mdc`).
+After each tool path, cutting `mom_*` variables are reset (`pb__shop_reset_path_mom_vars`) so the next CSV row does not inherit stale values — see `.cursor/rules/mom-variable-reset.mdc`.
 
 ---
 
