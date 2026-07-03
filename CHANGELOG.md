@@ -2,6 +2,43 @@
 
 All notable changes to **shop_doc_advanced** are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [1.1.9] - 2026-07-03
+
+### Added
+
+- **`pb__ap_wall_finish_barrel_swarf`** — Final Ap for `WALL_FINISH-BARREL_SWARF` (`ap_mill_multiaxis`): MM / % diameter / % flute from `mom_maximal_stepover_distance` keyed by `mom_cut_level_distance_source`.
+
+## [1.1.8] - 2026-07-03
+
+### Added
+
+- **CSV / XLSX column** `mom_maximal_stepover_distance_source` (after `mom_maximal_stepover_distance`), with per-path unset in `pb__shop_reset_path_mom_vars`.
+
+## [1.1.7] - 2026-07-03
+
+### Changed
+
+- **`WALL_FINISH-BARREL_SWARF`** in `ae_mill_multiaxis` → Final Ae = `"NO DATA"` (was `mom_maximal_stepover_distance`).
+
+## [1.1.6] - 2026-07-03
+
+### Fixed
+
+- **`ZLEVEL_5AXIS` Ap (SCALLOP case):** `"NO DATA"` when `mom_common_depth_per_cut_type = 1` (was incorrectly keyed off non-zero `mom_scallop_common_depth_per_cut`).
+
+## [1.1.5] - 2026-07-03
+
+### Added
+
+- **`pb__ap_zlevel_5axis`** — Final Ap for `ZLEVEL_5AXIS` (`ap_mill_multiaxis`): constant depth (MM / % diameter / % flute) when `mom_scallop_common_depth_per_cut = 0`; `"NO DATA"` when scallop is non-zero.
+
+## [1.1.4] - 2026-07-03
+
+### Changed
+
+- **`CONTOUR_PROFILE`** in `ap_mill_multiaxis` uses `solid_profile_3d` → `pb__ap_solid_profile_3d` (increment vs passes from `mom_multi_depth_cut_type`).
+- **PASSES** case in `pb__ap_solid_profile_3d` now requires `mom_stock_part_offset` non-zero (shared with `SOLID_PROFILE_3D` / `PROFILE_3D`).
+
 ## [1.1.3] - 2026-07-03
 
 ### Changed
@@ -60,6 +97,12 @@ All notable changes to **shop_doc_advanced** are documented here. Format follows
 
 - Initial shop-doc post: CSV export, ClosedXML XLSX conversion, table styling, validation lists, and base `mom_*` parameter columns.
 
+[1.1.9]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.8...v1.1.9
+[1.1.8]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.7...v1.1.8
+[1.1.7]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.6...v1.1.7
+[1.1.6]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.5...v1.1.6
+[1.1.5]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.4...v1.1.5
+[1.1.4]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.0...v1.1.1

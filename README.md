@@ -1,6 +1,6 @@
 # shop_doc_advanced — Siemens NX Post-Processor
 
-**Current version: 1.1.3** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+**Current version: 1.1.9** — see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Custom CAM post-processor for **Siemens NX** (Design Center / NX 2512 tested) that exports **shop documentation** as CSV and converts it to a formatted **Excel workbook (.xlsx)** for planners and operators.
 
@@ -42,7 +42,7 @@ Subtype-specific rules (constant depth, scallop, stepover type, multi-depth pass
 
 - **mill_planar Ap:** `FACE_MILL_MIDPASS` / spiral / zigzag / `2D_WALL_MILL` cut-level logic; planar mill, groove milling
 - **mill_contour Ap/Ae:** common depth / scallop; stepover vs flute; FLOW multiple/ref; profile 3D multi-depth; `3D_ADAPTIVE_ROUGHING` cut-level Ap (MM / % diameter / % flute)
-- **mill_multi-axis Ap:** `MULTI_AXIS_ROUGHING` cut-level Ap (AUTO MM / % diameter / % flute)
+- **mill_multi-axis Ap:** `MULTI_AXIS_ROUGHING` cut-level Ap; `CONTOUR_PROFILE` multi-depth; `ZLEVEL_5AXIS` global cut depth / scallop; `WALL_FINISH-BARREL_SWARF` maximal stepover
 
 After each tool path, cutting `mom_*` variables are reset so the next CSV row does not inherit stale values (see `.cursor/rules/mom-variable-reset.mdc`).
 
@@ -176,6 +176,7 @@ Recent parameter columns (v1.1.0), appended after existing depth/cut-level field
 | `mom_multi_depth_cut_type` | Increment vs number of passes (profile 3D) |
 | `mom_multi_depth_cut_passes_number` | Pass count for multi-depth cutting |
 | `mom_stock_part_offset` | Part stock offset (used in profile 3D Ap passes mode) |
+| `mom_maximal_stepover_distance_source` | Source type for maximal stepover distance |
 
 ### Data validation lists
 

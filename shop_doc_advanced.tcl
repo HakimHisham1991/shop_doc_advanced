@@ -6376,6 +6376,7 @@ puts $file_handle [join [list \
     mom_wall_number_passes \
     mom_wall_stock_offset \
     mom_maximal_stepover_distance \
+    mom_maximal_stepover_distance_source \
     {max(mom_stepover_variable_tool_dependent_values)} \
     mom_deburring_edge_depth \
     mom_region_cut_method \
@@ -9682,7 +9683,8 @@ proc pb__ap_flow_mill_multiple {} {
     return [pb__ae_ap_var mom_stepover_distance]
 }
 
-# Returns ap for SOLID_PROFILE_3D / PROFILE_3D (mill_contour) from multi-depth cut settings.
+# Returns ap for SOLID_PROFILE_3D / PROFILE_3D (mill_contour) and CONTOUR_PROFILE (mill_multi-axis)
+# from multi-depth cut settings.
 proc pb__ap_solid_profile_3d {} {
     if {![info exists ::mom_multi_depth_cut_type]} {
         return "N/A"
@@ -9692,7 +9694,7 @@ proc pb__ap_solid_profile_3d {} {
     }
     if {$::mom_multi_depth_cut_type == 1} {
         if {[info exists ::mom_multi_depth_cut_passes_number] && $::mom_multi_depth_cut_passes_number != 0
-            && [info exists ::mom_stock_part_offset]} {
+            && [info exists ::mom_stock_part_offset] && $::mom_stock_part_offset != 0} {
             return [pb__round_param_4dec [expr {double($::mom_stock_part_offset) / double($::mom_multi_depth_cut_passes_number)}]]
         }
         return "N/A"
@@ -9734,6 +9736,52 @@ proc pb__ap_multi_axis_roughing {} {
     if {$::mom_cut_level_distance_source == 7} {
         if {[info exists ::mom_cut_level_distance] && [info exists ::mom_tool_flute_length]} {
             return [pb__round_param_4dec [expr {double($::mom_cut_level_distance) / 100.0 * $::mom_tool_flute_length}]]
+        }
+        return "N/A"
+    }
+    return "N/A"
+}
+
+# Returns ap for ZLEVEL_5AXIS (mill_multi-axis) from global cut depth / scallop settings.
+proc pb__ap_zlevel_5axis {} {
+    if {[info exists ::mom_common_depth_per_cut_type] && $::mom_common_depth_per_cut_type == 1} {
+        return "NO DATA"
+    }
+    if {![info exists ::mom_scallop_common_depth_per_cut] || $::mom_scallop_common_depth_per_cut != 0} {
+        return "N/A"
+    }
+    if {![info exists ::mom_global_cut_depth_source]} {
+        return [pb__ae_ap_var mom_global_cut_depth]
+    }
+    if {$::mom_global_cut_depth_source == 4} {
+        if {[info exists ::mom_global_cut_depth] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+            return [pb__round_param_4dec [expr {double($::mom_global_cut_depth) / 100.0 * $::mom_tool_diameter}]]
+        }
+        return "N/A"
+    }
+    if {$::mom_global_cut_depth_source == 7} {
+        if {[info exists ::mom_global_cut_depth] && [info exists ::mom_tool_flute_length] && $::mom_tool_flute_length != 0} {
+            return [pb__round_param_4dec [expr {double($::mom_global_cut_depth) / 100.0 * $::mom_tool_flute_length}]]
+        }
+        return "N/A"
+    }
+    return "N/A"
+}
+
+# Returns ap for WALL_FINISH-BARREL_SWARF (mill_multi-axis) from maximal stepover settings.
+proc pb__ap_wall_finish_barrel_swarf {} {
+    if {![info exists ::mom_cut_level_distance_source]} {
+        return [pb__ae_ap_var mom_maximal_stepover_distance]
+    }
+    if {$::mom_cut_level_distance_source == 4} {
+        if {[info exists ::mom_maximal_stepover_distance] && [info exists ::mom_tool_diameter] && $::mom_tool_diameter != 0} {
+            return [pb__round_param_4dec [expr {double($::mom_maximal_stepover_distance) / 100.0 * $::mom_tool_diameter}]]
+        }
+        return "N/A"
+    }
+    if {$::mom_cut_level_distance_source == 7} {
+        if {[info exists ::mom_maximal_stepover_distance] && [info exists ::mom_tool_flute_length] && $::mom_tool_flute_length != 0} {
+            return [pb__round_param_4dec [expr {double($::mom_maximal_stepover_distance) / 100.0 * $::mom_tool_flute_length}]]
         }
         return "N/A"
     }
@@ -9785,7 +9833,7 @@ proc pb__shop_reset_path_mom_vars {} {
         mom_stepover_distance mom_stepover_distance_source mom_stepover_percent
         mom_stepover_scallop mom_stepover_type
         mom_wall_increment mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
-        mom_maximal_stepover_distance mom_deburring_edge_depth mom_region_cut_method
+        mom_maximal_stepover_distance mom_maximal_stepover_distance_source mom_deburring_edge_depth mom_region_cut_method
         mom_depth_per_cut mom_cut_level_max_depth mom_depth_of_cut_type mom_global_cut_depth mom_global_cut_depth_source mom_step_ahead_distance
         mom_multi_depth_cut_increment mom_multi_depth_cut_type mom_multi_depth_cut_passes_number mom_horizonal_limit mom_vertical_limit
         mom_surface_uv_direction mom_stepover_uv_direction mom_axial_stepover_distance mom_axial_stepover_distance_source
@@ -9840,7 +9888,7 @@ global mom_global_cut_depth mom_step_ahead_distance mom_wall_increment
 global mom_wall_step_method mom_wall_number_passes mom_wall_stock_offset
 global mom_multi_depth_cut_increment mom_multi_depth_cut_type mom_multi_depth_cut_passes_number mom_horizonal_limit mom_vertical_limit
 global mom_surface_uv_direction mom_stepover_uv_direction
-global mom_maximal_stepover_distance mom_axial_stepover_distance mom_axial_stepover_type mom_axial_stepover_passes mom_axial_stepover_percent
+global mom_maximal_stepover_distance mom_maximal_stepover_distance_source mom_axial_stepover_distance mom_axial_stepover_type mom_axial_stepover_passes mom_axial_stepover_percent
 global mom_cycle_step1 mom_cycle_type
 global mom_nxt_helix_pitch
 global mom_vertical_pitch_type mom_vertical_pitch_value_source mom_vertical_pitch_value
@@ -10177,7 +10225,7 @@ array set ae_mill_multiaxis {
     CONTOUR_PROFILE              contour_profile
     VARIABLE_STREAMLINE          no_data
     VARIABLE_CONTOUR             variable_contour
-    WALL_FINISH-BARREL_SWARF     max_stepover
+    WALL_FINISH-BARREL_SWARF     no_data
     ZLEVEL_5AXIS                 tool_dia
     5_AXIS_DEBURRING             deburring
 }
@@ -10387,6 +10435,9 @@ catch {
 #   cut_level_dist     -> ap = mom_cut_level_distance
 #   multi_axis_rgh_ap  -> call pb__ap_multi_axis_roughing (MULTI_AXIS_ROUGHING cut-level Ap logic)
 #   var_axis_gc        -> call pb__ae_variable_axis_guiding_curves (VARIABLE_AXIS_GUIDING_CURVES stepover logic)
+#   solid_profile_3d   -> call pb__ap_solid_profile_3d (CONTOUR_PROFILE multi-depth Ap logic)
+#   zlevel_5axis       -> call pb__ap_zlevel_5axis (ZLEVEL_5AXIS global cut depth / scallop Ap logic)
+#   wall_finish_swarf  -> call pb__ap_wall_finish_barrel_swarf (WALL_FINISH-BARREL_SWARF maximal stepover Ap logic)
 #   stepover_dist      -> ap = mom_stepover_distance
 #   multi_depth_incr -> ap = mom_multi_depth_cut_increment
 #   no_data          -> ap = "NO DATA"
@@ -10398,11 +10449,11 @@ catch {
 array set ap_mill_multiaxis {
     MULTI_AXIS_ROUGHING          multi_axis_rgh_ap
     VARIABLE_AXIS_GUIDING_CURVES var_axis_gc
-    CONTOUR_PROFILE              multi_depth_incr
+    CONTOUR_PROFILE              solid_profile_3d
     VARIABLE_STREAMLINE          no_data
     VARIABLE_CONTOUR             max_scallop_s
-    WALL_FINISH-BARREL_SWARF     depth_per_cut
-    ZLEVEL_5AXIS                 global_cut_depth
+    WALL_FINISH-BARREL_SWARF     wall_finish_swarf
+    ZLEVEL_5AXIS                 zlevel_5axis
     5_AXIS_DEBURRING             deburring
 }
 
@@ -10417,6 +10468,9 @@ catch {
                 cut_level_dist     { set final_ap [pb__ae_ap_var mom_cut_level_distance] }
                 multi_axis_rgh_ap  { set final_ap [pb__ap_multi_axis_roughing] }
                 var_axis_gc        { set final_ap [pb__ae_variable_axis_guiding_curves $sot] }
+                solid_profile_3d { set final_ap [pb__ap_solid_profile_3d] }
+                zlevel_5axis     { set final_ap [pb__ap_zlevel_5axis] }
+                wall_finish_swarf { set final_ap [pb__ap_wall_finish_barrel_swarf] }
                 stepover_dist      { set final_ap [pb__ae_ap_var mom_stepover_distance] }
                 multi_depth_incr { set final_ap [pb__ae_ap_var mom_multi_depth_cut_increment] }
                 no_data          { set final_ap "NO DATA" }
@@ -10568,6 +10622,7 @@ set row_fields [list \
     [pb__mom_var_or_na mom_wall_number_passes] \
     [pb__mom_var_or_na mom_wall_stock_offset] \
     [pb__mom_var_or_na mom_maximal_stepover_distance] \
+    [pb__mom_var_or_na mom_maximal_stepover_distance_source] \
     $max_stepover_var_tool_dep \
     [pb__mom_var_or_na mom_deburring_edge_depth] \
     [pb__mom_var_or_na mom_region_cut_method] \
