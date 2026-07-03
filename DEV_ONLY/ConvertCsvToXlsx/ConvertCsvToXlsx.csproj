@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>convert_csv_to_xlsx</AssemblyName>
     <RootNamespace>ShopDoc</RootNamespace>
+    <ApplicationIcon>convert.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

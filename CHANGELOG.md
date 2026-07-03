@@ -2,6 +2,12 @@
 
 All notable changes to **shop_doc_advanced** are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [1.1.12] - 2026-07-03
+
+### Changed
+
+- **`convert_csv_to_xlsx.exe`** — embeds `DEV_ONLY/ConvertCsvToXlsx/convert.ico` so the published exe shows a proper icon in Windows Explorer.
+
 ## [1.1.11] - 2026-07-03
 
 ### Added
@@ -109,6 +115,7 @@ All notable changes to **shop_doc_advanced** are documented here. Format follows
 
 - Initial shop-doc post: CSV export, ClosedXML XLSX conversion, table styling, validation lists, and base `mom_*` parameter columns.
 
+[1.1.12]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.11...v1.1.12
 [1.1.11]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.10...v1.1.11
 [1.1.10]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.9...v1.1.10
 [1.1.9]: https://github.com/HakimHisham1991/shop_doc_advanced/compare/v1.1.8...v1.1.9

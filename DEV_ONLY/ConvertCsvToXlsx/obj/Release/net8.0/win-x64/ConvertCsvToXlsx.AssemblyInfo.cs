@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("convert_csv_to_xlsx")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+92544d454a575f1e72f40978937615cf1aaf404e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73facb5e319f25921e2673c32d36df2d3f211dd8")]
 [assembly: System.Reflection.AssemblyProductAttribute("convert_csv_to_xlsx")]
 [assembly: System.Reflection.AssemblyTitleAttribute("convert_csv_to_xlsx")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,6 +1,6 @@
 # shop_doc_advanced — Siemens NX Post-Processor
 
-**Current version: 1.1.11** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+**Current version: 1.1.12** — see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Custom CAM post-processor for **Siemens NX** (Design Center / NX 2512 tested) that exports **shop documentation** as CSV and converts it to a formatted **Excel workbook (.xlsx)** for planners and operators.
 
@@ -217,7 +217,7 @@ From the repository root:
 powershell -ExecutionPolicy Bypass -File DEV_ONLY\build_converter.ps1
 ```
 
-This publishes a **self-contained single-file** `convert_csv_to_xlsx.exe` to the post root. Copy that exe to all NX post deployments.
+This publishes a **self-contained single-file** `convert_csv_to_xlsx.exe` to the post root (Windows icon from `DEV_ONLY/ConvertCsvToXlsx/convert.ico`). Copy that exe to all NX post deployments.
 
 Manual publish:
 
