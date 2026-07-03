@@ -1,5 +1,7 @@
 # shop_doc_advanced — Siemens NX Post-Processor
 
+**Current version: 1.1.3** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+
 Custom CAM post-processor for **Siemens NX** (Design Center / NX 2512 tested) that exports **shop documentation** as CSV and converts it to a formatted **Excel workbook (.xlsx)** for planners and operators.
 
 Built with **Post Builder** for a **5-axis dual-table** mill. Primary output is a parameter spreadsheet (tool, material, strategy, stepover, stock, cycle time, etc.) rather than traditional G-code listing.
@@ -19,6 +21,30 @@ Built with **Post Builder** for a **5-axis dual-table** mill. Primary output is 
 | **Error log** | Optional diagnostics appended to output (see below) |
 | **Guest / offline** | No admin rights, no Office license, no network required at runtime |
 | **CSV-only mode** | Optional env var to skip motion output for faster posts on huge toolpaths |
+| **Final Ae / Ap** | Table-driven radial (ae) and axial (ap) DOC per `mom_template_type` + subtype — see below |
+
+---
+
+## Final Ae and Final Ap (shop-doc columns)
+
+The post computes **Radial (ae) D.O.C** and **Axial (ap) D.O.C** from NX `mom_*` variables using dispatch tables in `shop_doc_advanced.tcl`:
+
+| Template type | Dispatch array | Examples |
+|---------------|----------------|----------|
+| `mill_planar` | `ae_mill_planar`, `ap_mill_planar` | `FACE_MILL_MIDPASS`, `PLANAR_MILL`, `GROOVE_MILLING` |
+| `mill_contour` | `ae_mill_contour`, `ap_mill_contour` | `CAVITY_MILL`, `AREA_MILL`, `SOLID_PROFILE_3D` |
+| `mill_multi-axis` | `ae_mill_multiaxis`, `ap_mill_multiaxis` | `MULTI_AXIS_ROUGHING`, `VARIABLE_CONTOUR` |
+| `hole_making` | `ap_hole_making` | `DRILLING`, `HOLE_MILLING` |
+
+Subtype-specific rules (constant depth, scallop, stepover type, multi-depth passes, etc.) live in `pb__ae_*` / `pb__ap_*` procs. Unmatched or missing inputs output `N/A` or `NO DATA` as defined per subtype.
+
+**v1.1.0 highlights:**
+
+- **mill_planar Ap:** `FACE_MILL_MIDPASS` / spiral / zigzag / `2D_WALL_MILL` cut-level logic; planar mill, groove milling
+- **mill_contour Ap/Ae:** common depth / scallop; stepover vs flute; FLOW multiple/ref; profile 3D multi-depth; `3D_ADAPTIVE_ROUGHING` cut-level Ap (MM / % diameter / % flute)
+- **mill_multi-axis Ap:** `MULTI_AXIS_ROUGHING` cut-level Ap (AUTO MM / % diameter / % flute)
+
+After each tool path, cutting `mom_*` variables are reset so the next CSV row does not inherit stale values (see `.cursor/rules/mom-variable-reset.mdc`).
 
 ---
 
@@ -139,7 +165,17 @@ set mom_sys_converter_dir           $mom_sys_this_post_dir
 
 ### Shop columns (first columns in sheet)
 
-Includes: No., A/C Type, Part Number, Material Type, Tool Ref. Number, Cutter Description, Cutter Type, Tool Type, Finish Type, feeds/speeds, DOC, strategy, operation name, plus many NX parameter columns (`mom_*`, `path_stepover_*`, etc.).
+Includes: No., A/C Type, Part Number, Material Type, Tool Ref. Number, Cutter Description, Cutter Type, Tool Type, Finish Type, feeds/speeds, **Final Axial (ap) / Radial (ae) DOC**, strategy, operation name, plus many NX parameter columns (`mom_*`, `path_stepover_*`, etc.).
+
+Recent parameter columns (v1.1.0), appended after existing depth/cut-level fields:
+
+| Column | Typical use |
+|--------|-------------|
+| `mom_common_depth_per_cut_type` | Constant depth vs scallop for contour roughing |
+| `mom_scallop_common_depth_per_cut` | Scallop height when common depth type = scallop |
+| `mom_multi_depth_cut_type` | Increment vs number of passes (profile 3D) |
+| `mom_multi_depth_cut_passes_number` | Pass count for multi-depth cutting |
+| `mom_stock_part_offset` | Part stock offset (used in profile 3D Ap passes mode) |
 
 ### Data validation lists
 
@@ -265,3 +301,4 @@ Third-party: [ClosedXML](https://github.com/ClosedXML/ClosedXML) 0.105 (MIT) bun
 | Diagnose slowdown / deploy | `DEV_ONLY\diagnose_postprocessor.ps1` |
 | Disable XLSX | `set mom_sys_csv_to_xlsx_enabled 0` in `.tcl` |
 | Fast post (CSV data only) | Set env `MOM_CSV_ONLY=1` before starting NX |
+| Release notes | [CHANGELOG.md](CHANGELOG.md) |
